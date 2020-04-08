@@ -1,4 +1,4 @@
-// Eurac reads sensors' data from a csv file
+// Pusher reads sensors' data from a csv file.
 package main
 
 import (
