@@ -1,3 +1,3 @@
-module github.com/GitDruid/ltser
+module goex/ltser
 
 go 1.13
