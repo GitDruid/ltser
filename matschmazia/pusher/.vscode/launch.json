@@ -11,7 +11,7 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586080181.csv", "-h=2", "-m=5"]
+            "args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586080181.csv", "-h=2", "-m=5", "-u="]
         }
     ]
 }
