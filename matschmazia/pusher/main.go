@@ -1,14 +1,18 @@
-// Pusher reads data from a csv file and post them to a REST service as flat JSON.
+// Pusher reads data from a csv file, transform each row in a flat JSON
+// and send them to StdOut or post them to a REST service.
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 )
@@ -52,7 +56,7 @@ func main() {
 	for i := uint(0); i < headersRows; i++ {
 		record := readFrom(r)
 		if i == 0 {
-			headers = append(headers, record...) // Cloning values since record is a slice and r.ReuseRecord = true
+			headers = append(headers, record...) // Cloning values since record is a slice and r.ReuseRecord = true.
 		}
 	}
 
@@ -78,10 +82,24 @@ func main() {
 			continue
 		}
 
+		//TODO: refactor in a separate parametric function.
 		if targetURL == noURL {
 			fmt.Printf("%s\n", jsonBytes)
 		} else {
-			//TODO: POST to remote.
+			r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(jsonBytes))
+			if err != nil {
+				log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+			}
+			b, err := ioutil.ReadAll(r.Body)
+			r.Body.Close()
+			if err != nil {
+				log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+			}
+			if r.StatusCode == http.StatusOK {
+				log.Printf("%s\n", b)
+			} else {
+				log.Printf("An error occurred on row %v: response status %q.", i, r.Status)
+			}
 		}
 	}
 
