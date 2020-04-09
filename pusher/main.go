@@ -1,5 +1,8 @@
 // Pusher reads data from a csv file, transform each rows in a flat JSON
 // and send them to StdOut or post them to a REST service.
+//
+// TODO: refactor-out all the conversion logic in a csvconv package that provide
+// a *csvconv.Reader that wraps a *csv.Reader and returs json []bytes.
 package main
 
 import (
@@ -41,7 +44,6 @@ func init() {
 }
 
 func main() {
-
 	flag.Parse()
 
 	// Function variable to change behavior based on targetURL.
@@ -111,7 +113,6 @@ func readFrom(r *csv.Reader) (record []string) {
 }
 
 func toMap(k []string, v []string) (map[string]string, error) {
-
 	if len(v) != len(k) {
 		return nil, errors.New("keys and values sizes don't match")
 	}
