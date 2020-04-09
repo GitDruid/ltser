@@ -1,4 +1,4 @@
-// Pusher reads data from a csv file, transform each row in a flat JSON
+// Pusher reads data from a csv file, transform each rows in a flat JSON
 // and send them to StdOut or post them to a REST service.
 package main
 
@@ -30,6 +30,7 @@ var (
 	headersRows uint
 	rowsToRead  int
 	targetURL   string
+	send        func(i int, b []byte)
 )
 
 func init() {
@@ -43,11 +44,18 @@ func main() {
 
 	flag.Parse()
 
+	// Function variable to change behavior based on targetURL.
+	if targetURL == noURL {
+		send = sendToStdOut
+	} else {
+		send = sendToTargetURL
+	}
+
+	// Open .CSV file.
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("An error occurred: %v", err)
 	}
-
 	r := csv.NewReader(f)
 	r.ReuseRecord = true
 
@@ -60,47 +68,29 @@ func main() {
 		}
 	}
 
-	// Read data.
 	for i := 0; rowsToRead < 0 || i < rowsToRead; i++ {
+		// Read data.
 		record := readFrom(r)
 
+		// Trasform data.
 		if i == 0 && len(headers) == 0 { // If headers are missing, generate default columns' names.
-			for i := 0; i < len(record); i++ {
-				headers = append(headers, "column"+strconv.Itoa(i))
+			for j := 0; j < len(record); j++ {
+				headers = append(headers, "column"+strconv.Itoa(j))
 			}
 		}
-
 		m, err := toMap(headers, record)
 		if err != nil {
 			log.Printf("Skipped malformed row #%v (%s).", i, err)
 			continue
 		}
-
 		jsonBytes, err := json.MarshalIndent(m, "", "   ")
 		if err != nil {
 			log.Printf("Skipped malformed row #%v (%s).", i, err)
 			continue
 		}
 
-		//TODO: refactor in a separate parametric function.
-		if targetURL == noURL {
-			fmt.Printf("%s\n", jsonBytes)
-		} else {
-			r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(jsonBytes))
-			if err != nil {
-				log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
-			}
-			b, err := ioutil.ReadAll(r.Body)
-			r.Body.Close()
-			if err != nil {
-				log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
-			}
-			if r.StatusCode == http.StatusOK {
-				log.Printf("%s\n", b)
-			} else {
-				log.Printf("An error occurred on row %v: response status %q.", i, r.Status)
-			}
-		}
+		// Send data.
+		send(i, jsonBytes)
 	}
 
 	log.Print("Finished!")
@@ -123,7 +113,7 @@ func readFrom(r *csv.Reader) (record []string) {
 func toMap(k []string, v []string) (map[string]string, error) {
 
 	if len(v) != len(k) {
-		return nil, errors.New("keys and values sizes dont match")
+		return nil, errors.New("keys and values sizes don't match")
 	}
 
 	m := make(map[string]string)
@@ -133,4 +123,25 @@ func toMap(k []string, v []string) (map[string]string, error) {
 	}
 
 	return m, nil
+}
+
+func sendToStdOut(i int, b []byte) {
+	fmt.Printf("%s\n", b)
+}
+
+func sendToTargetURL(i int, b []byte) {
+	r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(b))
+	if err != nil {
+		log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+	}
+	_, err = ioutil.ReadAll(r.Body)
+	r.Body.Close()
+	if err != nil {
+		log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+	}
+	if r.StatusCode == http.StatusOK {
+		log.Print(".")
+	} else {
+		log.Printf("An error occurred on row %v: response status %q.", i, r.Status)
+	}
 }
