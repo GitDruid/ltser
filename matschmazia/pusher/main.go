@@ -1,4 +1,4 @@
-// Pusher reads data from a csv file and post them to a REST service in a flat JSON.
+// Pusher reads data from a csv file and post them to a REST service as flat JSON.
 package main
 
 import (
@@ -15,40 +15,22 @@ import (
 
 // Default values for parameters.
 const (
-	defFilename   = "./data.csv"
-	defHeaderRows = 1
-	noRowsLimit   = -1
-	noURL         = ""
+	defFilename    = "./data.csv"
+	defHeadersRows = 1
+	noRowsLimit    = -1
+	noURL          = ""
 )
 
-// More information on: https://browser.lter.eurac.edu/p/info.md
-const (
-	time              = iota // Date/time of measurement (UTC +1).
-	station                  // Station code.
-	landuse                  // me = meadows, pa = pasture, bs = bare soil, fo = forest
-	altitude                 // Altitude of the station in meters.
-	latitude                 // Latitude, coordinates in decimal degrees.
-	longitude                // Longitude, coordinates in decimal degrees.
-	airRelHumidityAvg        // Relative humidity in percent (15 min average).
-	airTempAvg               // Air temperature in degree celsius (15 min average).
-	nrUpSwAvg                // Undocumented.
-	precipRtNrtTot           // Precipitation in mm (15 min cumulative sum).
-	snowHeight               // Snow height in meter.
-	srAvg                    // Global solar radiation in Watt square meter (15 min average).
-	windDir                  // Wind direction in degrees (15 min average).
-	windSpeed                // Undocumented.
-	windSpeedAvg             // Wind speed in m/s.
-	windSpeedMax             // Wind gust in m/s.
+var (
+	filename    string
+	headersRows uint
+	rowsToRead  int
+	targetURL   string
 )
-
-var filename string
-var headerRows uint
-var rowsToRead int
-var targetURL string
 
 func init() {
 	flag.StringVar(&filename, "f", defFilename, "Data .CSV file name.")
-	flag.UintVar(&headerRows, "h", defHeaderRows, "Number of header rows. First one is taken, the others are skipped.")
+	flag.UintVar(&headersRows, "h", defHeadersRows, "Number of headers rows. First one is taken, the others are skipped.")
 	flag.IntVar(&rowsToRead, "m", noRowsLimit, "Number of rows to read. Use -1 for no rows limit.")
 	flag.StringVar(&targetURL, "u", noURL, "Target URL. If empty string, data are logged on StdOut.")
 }
@@ -67,12 +49,10 @@ func main() {
 
 	// Read headers.
 	headers := []string{}
-	for i := uint(0); i < headerRows; i++ {
+	for i := uint(0); i < headersRows; i++ {
 		record := readFrom(r)
 		if i == 0 {
 			headers = append(headers, record...) // Cloning values since record is a slice and r.ReuseRecord = true
-			//headers = []string{"pippo", "pluto"}        // Test: few headers than data columns.
-			//headers = append(headers, "pippo", "pluto") // Test: more headers than data columns.
 		}
 	}
 
@@ -92,20 +72,20 @@ func main() {
 			continue
 		}
 
-		b, err := json.Marshal(m)
+		jsonBytes, err := json.MarshalIndent(m, "", "   ")
 		if err != nil {
 			log.Printf("Skipped malformed row #%v (%s).", i, err)
 			continue
 		}
 
-		jsonStr := string(b)
-
 		if targetURL == noURL {
-			fmt.Println(jsonStr)
+			fmt.Printf("%s\n", jsonBytes)
 		} else {
 			//TODO: POST to remote.
 		}
 	}
+
+	log.Print("Finished!")
 }
 
 func readFrom(r *csv.Reader) (record []string) {
