@@ -12,16 +12,14 @@ package main
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
+	"goex/ltser/csvjson"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 // Default values for parameters.
@@ -63,35 +61,20 @@ func main() {
 		log.Fatalf("An error occurred: %v", err)
 	}
 
-	r := csv.NewReader(f)
-	r.ReuseRecord = true
+	csvRdr := csv.NewReader(f)
+	csvRdr.ReuseRecord = true
 
-	// Read headers.
-	headers := []string{}
-	for i := uint(0); i < headersRows; i++ {
-		record := readFrom(r)
-		if i == 0 {
-			headers = append(headers, record...) // Cloning values since record is a slice and r.ReuseRecord = true.
-		}
-	}
+	jsonRdr := csvjson.NewReader(*csvRdr)
+	jsonRdr.HeadersRows = headersRows
 
 	for i := 0; rowsToRead < 0 || i < rowsToRead; i++ {
 		// Read data.
-		record := readFrom(r)
-
-		// Trasform data.
-		if i == 0 && len(headers) == 0 { // If headers are missing, generate default columns' names.
-			for j := 0; j < len(record); j++ {
-				headers = append(headers, "column"+strconv.Itoa(j))
+		jsonBytes, err := jsonRdr.Read()
+		if err != nil {
+			if err == io.EOF {
+				log.Print("Finished!")
+				os.Exit(0)
 			}
-		}
-		m, err := toMap(headers, record)
-		if err != nil {
-			log.Printf("Skipped malformed row #%v (%s).", i, err)
-			continue
-		}
-		jsonBytes, err := json.MarshalIndent(m, "", "   ")
-		if err != nil {
 			log.Printf("Skipped malformed row #%v (%s).", i, err)
 			continue
 		}
@@ -101,34 +84,6 @@ func main() {
 	}
 
 	log.Print("Finished!")
-}
-
-func readFrom(r *csv.Reader) (record []string) {
-	record, err := r.Read()
-
-	if err != nil {
-		if err == io.EOF {
-			log.Print("Finished!")
-			os.Exit(0)
-		}
-		log.Fatalf("An error occurred: %v", err)
-	}
-
-	return record
-}
-
-func toMap(k []string, v []string) (map[string]string, error) {
-	if len(v) != len(k) {
-		return nil, errors.New("keys and values sizes don't match")
-	}
-
-	m := make(map[string]string)
-
-	for i := 0; i < len(k); i++ {
-		m[k[i]] = v[i]
-	}
-
-	return m, nil
 }
 
 func sendToStdOut(i int, b []byte) {

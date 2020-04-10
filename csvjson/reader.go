@@ -13,17 +13,22 @@ import (
 	"strconv"
 )
 
+const (
+	defHeaderRows = 1
+)
+
 // A Reader convert records read by a csv.Reader into json objects.
 type Reader struct {
+	HeadersRows uint
 	cr          *csv.Reader
 	headers     []string
-	headersRows uint
 	rowsCount   uint
 }
 
 // NewReader returns a new Reader that read from r.
 func NewReader(r csv.Reader) *Reader {
 	csvconvReder := new(Reader)
+	csvconvReder.HeadersRows = defHeaderRows
 	csvconvReder.cr = &r
 
 	return csvconvReder
@@ -33,7 +38,7 @@ func NewReader(r csv.Reader) *Reader {
 func (r *Reader) Read() ([]byte, error) {
 
 	// Read headers.
-	for r.rowsCount < r.headersRows {
+	for r.rowsCount < r.HeadersRows {
 		record, err := r.cr.Read()
 		r.rowsCount++
 		if err != nil {
@@ -53,7 +58,7 @@ func (r *Reader) Read() ([]byte, error) {
 	}
 
 	// Trasform data.
-	if r.rowsCount == 0 && len(r.headers) == 0 { // If headers are missing, generate default columns' names.
+	if r.rowsCount == 1 && len(r.headers) == 0 { // If headers are missing, generate default columns' names.
 		for i := 0; i < len(record); i++ {
 			r.headers = append(r.headers, "column"+strconv.Itoa(i))
 		}
