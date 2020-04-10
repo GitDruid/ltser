@@ -31,7 +31,7 @@ var (
 	headersRows uint
 	rowsToRead  int
 	targetURL   string
-	send        func(int, []byte) // Function variable to change behavior based on targetURL.
+	send        func([]byte) error // Function variable to change behavior based on targetURL.
 )
 
 func init() {
@@ -78,29 +78,35 @@ func main() {
 		}
 
 		// Send data.
-		send(i, jsonBytes)
+		send(jsonBytes)
+		if err != nil {
+			log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+		}
 	}
 
 	log.Print("Finished!")
 }
 
-func sendToStdOut(i int, b []byte) {
+func sendToStdOut(b []byte) error {
 	fmt.Printf("%s\n", b)
+
+	return nil
 }
 
-func sendToTargetURL(i int, b []byte) {
+func sendToTargetURL(b []byte) error {
 	r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+		return err
 	}
 	_, err = ioutil.ReadAll(r.Body)
 	r.Body.Close()
 	if err != nil {
-		log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+		return err
 	}
-	if r.StatusCode == http.StatusOK {
-		log.Print(".")
-	} else {
-		log.Printf("An error occurred on row %v: response status %q.", i, r.Status)
+	if r.StatusCode != http.StatusOK {
+		return fmt.Errorf("response status %q", r.Status)
 	}
+
+	log.Print(".")
+	return nil
 }
