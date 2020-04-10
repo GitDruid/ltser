@@ -1,8 +1,12 @@
 // Pusher reads data from a csv file, transform each rows in a flat JSON
 // and send them to StdOut or post them to a REST service.
 //
-// TODO: refactor-out all the conversion logic in a csvconv package that provide
+// TODO 1: refactor-out all the conversion logic in a csvconv package that provide
 // a *csvconv.Reader that wraps a *csv.Reader and returs json []bytes.
+// See also json.Encoder.
+//
+// TODO 2: add a flag to switch between sequential implementation (that guarantees
+// rows order) and parallel implementation (no order guaranteed).
 package main
 
 import (
@@ -33,7 +37,7 @@ var (
 	headersRows uint
 	rowsToRead  int
 	targetURL   string
-	send        func(i int, b []byte)
+	send        func(int, []byte)
 )
 
 func init() {
@@ -58,6 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("An error occurred: %v", err)
 	}
+
 	r := csv.NewReader(f)
 	r.ReuseRecord = true
 
