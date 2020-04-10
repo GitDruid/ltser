@@ -7,28 +7,31 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
-	"os"
 	"strconv"
 )
 
 const (
-	defHeaderRows = 1
+	defHeaderRows   = 1
+	defIndentFormat = false
+	defIntent       = ""
 )
 
 // A Reader convert records read by a csv.Reader into json objects.
 type Reader struct {
-	HeadersRows uint
-	cr          *csv.Reader
-	headers     []string
-	rowsCount   uint
+	HeadersRows  uint
+	IndentFormat bool
+	Intent       string
+	cr           *csv.Reader
+	headers      []string
+	rowsCount    uint
 }
 
 // NewReader returns a new Reader that read from r.
 func NewReader(r csv.Reader) *Reader {
 	csvconvReder := new(Reader)
 	csvconvReder.HeadersRows = defHeaderRows
+	csvconvReder.IndentFormat = defIndentFormat
+	csvconvReder.Intent = defIntent
 	csvconvReder.cr = &r
 
 	return csvconvReder
@@ -65,28 +68,14 @@ func (r *Reader) Read() ([]byte, error) {
 	}
 	m, err := toMap(r.headers, record)
 	if err != nil {
-		return nil, fmt.Errorf("skipped malformed row #%v (%s)", r.rowsCount, err)
+		return nil, fmt.Errorf("malformed row #%v (%s)", r.rowsCount, err)
 	}
-	jsonBytes, err := json.MarshalIndent(m, "", "   ")
+	jsonBytes, err := doMarshal(r, m)
 	if err != nil {
-		return nil, fmt.Errorf("skipped malformed row #%v (%s)", r.rowsCount, err)
+		return nil, fmt.Errorf("malformed row #%v (%s)", r.rowsCount, err)
 	}
 
 	return jsonBytes, nil
-}
-
-func readFrom(r *csv.Reader) (record []string) {
-	record, err := r.Read()
-
-	if err != nil {
-		if err == io.EOF {
-			log.Print("Finished!") //TODO: use Panic instead??
-			os.Exit(0)
-		}
-		log.Fatalf("An error occurred: %v", err) //TODO: use Panic instead??
-	}
-
-	return record
 }
 
 func toMap(k []string, v []string) (map[string]string, error) {
@@ -101,4 +90,12 @@ func toMap(k []string, v []string) (map[string]string, error) {
 	}
 
 	return m, nil
+}
+
+func doMarshal(r *Reader, v interface{}) ([]byte, error) {
+	if r.IndentFormat {
+		return json.MarshalIndent(v, "", r.Intent)
+	} else {
+		return json.Marshal(v)
+	}
 }
