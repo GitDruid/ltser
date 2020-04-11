@@ -1,20 +1,27 @@
-// Pusher reads data from a csv file, transform each row in a flat JSON
+// Pusher reads data from a csv file, transform each rows in a flat JSON
 // and send them to StdOut or post them to a REST service.
+//
+// TODO 2: add a flag to switch between sequential implementation (that guarantees
+// rows order) and parallel implementation (no order guaranteed).
+// Move the implementation in a sender package with:
+// 		func Send(b []byte)
+// 		func WaitForCompletion()
+//		func State() []error
+//		MaxConcurrency uint
+//		TargetURL string
 package main
 
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
+	"goex/ltser/csvjson"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 // Default values for parameters.
@@ -30,6 +37,7 @@ var (
 	headersRows uint
 	rowsToRead  int
 	targetURL   string
+	send        func([]byte) error // Function variable to change behavior based on targetURL.
 )
 
 func init() {
@@ -40,97 +48,71 @@ func init() {
 }
 
 func main() {
-
 	flag.Parse()
 
+	// Open .CSV file.
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("An error occurred: %v", err)
 	}
 
-	r := csv.NewReader(f)
-	r.ReuseRecord = true
+	csvRdr := csv.NewReader(f)
+	csvRdr.ReuseRecord = true
 
-	// Read headers.
-	headers := []string{}
-	for i := uint(0); i < headersRows; i++ {
-		record := readFrom(r)
-		if i == 0 {
-			headers = append(headers, record...) // Cloning values since record is a slice and r.ReuseRecord = true.
-		}
+	jsonRdr := csvjson.NewReader(*csvRdr)
+	jsonRdr.HeadersRows = headersRows
+
+	if targetURL == noURL {
+		send = sendToStdOut
+		jsonRdr.IndentFormat = true
+		jsonRdr.Intent = "   "
+	} else {
+		send = sendToTargetURL
+		jsonRdr.IndentFormat = false
 	}
 
-	// Read data.
 	for i := 0; rowsToRead < 0 || i < rowsToRead; i++ {
-		record := readFrom(r)
-
-		if i == 0 && len(headers) == 0 { // If headers are missing, generate default columns' names.
-			for i := 0; i < len(record); i++ {
-				headers = append(headers, "column"+strconv.Itoa(i))
-			}
-		}
-
-		m, err := toMap(headers, record)
+		// Read data.
+		jsonBytes, err := jsonRdr.Read()
 		if err != nil {
+			if err == io.EOF {
+				log.Print("Finished!")
+				os.Exit(0)
+			}
 			log.Printf("Skipped malformed row #%v (%s).", i, err)
 			continue
 		}
 
-		jsonBytes, err := json.MarshalIndent(m, "", "   ")
+		// Send data.
+		send(jsonBytes)
 		if err != nil {
-			log.Printf("Skipped malformed row #%v (%s).", i, err)
-			continue
-		}
-
-		//TODO: refactor in a separate parametric function.
-		if targetURL == noURL {
-			fmt.Printf("%s\n", jsonBytes)
-		} else {
-			r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(jsonBytes))
-			if err != nil {
-				log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
-			}
-			b, err := ioutil.ReadAll(r.Body)
-			r.Body.Close()
-			if err != nil {
-				log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
-			}
-			if r.StatusCode == http.StatusOK {
-				log.Printf("%s\n", b)
-			} else {
-				log.Printf("An error occurred on row %v: response status %q.", i, r.Status)
-			}
+			log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
 		}
 	}
 
 	log.Print("Finished!")
 }
 
-func readFrom(r *csv.Reader) (record []string) {
-	record, err := r.Read()
+func sendToStdOut(b []byte) error {
+	fmt.Printf("%s\n", b)
 
-	if err != nil {
-		if err == io.EOF {
-			log.Print("Finished!")
-			os.Exit(0)
-		}
-		log.Fatalf("An error occurred: %v", err)
-	}
-
-	return record
+	return nil
 }
 
-func toMap(k []string, v []string) (map[string]string, error) {
-
-	if len(v) != len(k) {
-		return nil, errors.New("keys and values sizes dont match")
+func sendToTargetURL(b []byte) error {
+	r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	_, err = ioutil.ReadAll(r.Body)
+	r.Body.Close()
+	if err != nil {
+		return err
+	}
+	if r.StatusCode != http.StatusOK {
+		return fmt.Errorf("response status %q", r.Status)
 	}
 
-	m := make(map[string]string)
-
-	for i := 0; i < len(k); i++ {
-		m[k[i]] = v[i]
-	}
-
-	return m, nil
+	log.Print(".")
+	return nil
 }
