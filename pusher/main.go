@@ -84,9 +84,9 @@ func main() {
 		}
 
 		// Send data.
-		send(jsonBytes)
+		err = send(jsonBytes)
 		if err != nil {
-			log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+			log.Fatalf("An error occurred on row %v: %q. Aborting.", i, err)
 		}
 	}
 
@@ -113,6 +113,6 @@ func sendToTargetURL(b []byte) error {
 		return fmt.Errorf("response status %q", r.Status)
 	}
 
-	log.Print(".")
+	fmt.Print(".")
 	return nil
 }

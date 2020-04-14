@@ -95,7 +95,6 @@ func toMap(k []string, v []string) (map[string]string, error) {
 func doMarshal(r *Reader, v interface{}) ([]byte, error) {
 	if r.IndentFormat {
 		return json.MarshalIndent(v, "", r.Intent)
-	} else {
-		return json.Marshal(v)
 	}
+	return json.Marshal(v)
 }
