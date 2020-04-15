@@ -49,6 +49,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(os.Stdout, "Data arrived: %v", reading)
 
+	//go dataStore.Save(reading) // This will saturate "InfluDB Cloud Free" limit.
 	err = dataStore.Save(reading)
 
 	// TODO: Manage response to the caller.
