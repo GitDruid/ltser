@@ -1,5 +1,4 @@
 // Package csvjson provide a *csvjson.Reader that wraps a *csv.Reader and returs json []bytes.
-// See also json.Encoder.
 package csvjson // import "goex/ltser/csvjson"
 
 import (
