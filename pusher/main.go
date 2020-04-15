@@ -1,26 +1,16 @@
 // Pusher reads data from a csv file, transform each rows in a flat JSON
 // and send them to StdOut or post them to a REST service.
-//
-// TODO 2: add a flag to switch between sequential implementation (that guarantees
-// rows order) and parallel implementation (no order guaranteed).
-// Move the implementation in a sender package with:
-// 		func Send(b []byte)
-// 		func WaitForCompletion()
-//		func State() []error
-//		MaxConcurrency uint
-//		TargetURL string
 package main
 
 import (
-	"bytes"
 	"encoding/csv"
 	"flag"
-	"fmt"
 	"goex/ltser/csvjson"
+	"goex/ltser/sender"
+	httpsender "goex/ltser/sender/http"
+	stdoutsender "goex/ltser/sender/stdout"
 	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 )
 
@@ -37,7 +27,7 @@ var (
 	headersRows uint
 	rowsToRead  int
 	targetURL   string
-	send        func([]byte) error // Function variable to change behavior based on targetURL.
+	dataSender  sender.Sender
 )
 
 func init() {
@@ -63,11 +53,11 @@ func main() {
 	jsonRdr.HeadersRows = headersRows
 
 	if targetURL == noURL {
-		send = sendToStdOut
+		dataSender = stdoutsender.NewSender()
 		jsonRdr.IndentFormat = true
 		jsonRdr.Intent = "   "
 	} else {
-		send = sendToTargetURL
+		dataSender = httpsender.NewSender(targetURL)
 		jsonRdr.IndentFormat = false
 	}
 
@@ -84,35 +74,11 @@ func main() {
 		}
 
 		// Send data.
-		send(jsonBytes)
+		err = dataSender.Send(jsonBytes)
 		if err != nil {
-			log.Fatalf("An error occurred on row %v: %v. Aborting.", i, err)
+			log.Fatalf("An error occurred on row %v: %q. Aborting.", i, err)
 		}
 	}
 
 	log.Print("Finished!")
-}
-
-func sendToStdOut(b []byte) error {
-	fmt.Printf("%s\n", b)
-
-	return nil
-}
-
-func sendToTargetURL(b []byte) error {
-	r, err := http.Post(targetURL, "application/json", bytes.NewBuffer(b))
-	if err != nil {
-		return err
-	}
-	_, err = ioutil.ReadAll(r.Body)
-	r.Body.Close()
-	if err != nil {
-		return err
-	}
-	if r.StatusCode != http.StatusOK {
-		return fmt.Errorf("response status %q", r.Status)
-	}
-
-	log.Print(".")
-	return nil
 }
