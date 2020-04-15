@@ -2,8 +2,6 @@
 package influxdb // import "goex/ltser/matschmazia/db/influxdb"
 
 import (
-	"context"
-	"fmt"
 	"goex/ltser/matschmazia/models"
 	"math"
 	"strconv"
@@ -14,29 +12,35 @@ import (
 
 // A Store save data to database.
 type Store struct {
+	url    string
+	org    string
+	bucket string
+	token  string
 }
 
-// NewStore returns a new Store.
-func NewStore() *Store {
+const (
+	mTemperature    = "temperature"
+	mWind           = "wind"
+	mHumidity       = "humidity"
+	mPrecipitations = "precipitations"
+)
+
+// NewStore returns a new InfluxDB Store.
+func NewStore(url, org, bucket, token string) *Store {
 	influxDbStore := new(Store)
+	influxDbStore.url = url
+	influxDbStore.org = org
+	influxDbStore.bucket = bucket
+	influxDbStore.token = token
 
 	return influxDbStore
 }
 
 // Save store data in InfluxDB measurements.
 func (s *Store) Save(sd models.SensorData) error {
-	orgName := "galassiasoft.com"
-	bucketName := "ltser-bucket"
 
-	mTemperature := "temperature"
-	mWind := "wind"
-	mHumidity := "humidity"
-	mPrecipitations := "precipitations"
-
-	client := influxdb2.NewClient("https://eu-central-1-1.aws.cloud2.influxdata.com", "NCWF7CXKdcoOGJ-dOA4EEIl-OaTZGUZLw6cEtlTho8nI7J-iznobcrs94W8jMZjLjyPN9NX8O48iPGN6-Aq18Q==")
-
-	// user blocking write client for writes to desired bucket
-	writeAPI := client.WriteApi(orgName, bucketName)
+	client := influxdb2.NewClient(s.url, s.token)
+	writeAPI := client.WriteApi(s.org, s.bucket)
 
 	// Temperature.
 	if t, err := strconv.ParseFloat(sd.AirTempAvg, 32); err == nil && !math.IsNaN(t) {
@@ -108,19 +112,12 @@ func (s *Store) Save(sd models.SensorData) error {
 	return nil
 }
 
-func query() {
-	orgName := "galassiasoft.com"
-	bucketName := "ltser-bucket"
-	measurementName := "test-measurement"
+/*
+func (s *Store) Query() error {
+	client := influxdb2.NewClient(s.url, s.token)
+	queryAPI := client.QueryApi(s.org)
 
-	// create new client with default option for server url authenticate by token
-	client := influxdb2.NewClient("https://eu-central-1-1.aws.cloud2.influxdata.com", "NCWF7CXKdcoOGJ-dOA4EEIl-OaTZGUZLw6cEtlTho8nI7J-iznobcrs94W8jMZjLjyPN9NX8O48iPGN6-Aq18Q==")
-
-	// get query client
-	queryAPI := client.QueryApi(orgName)
-
-	// get parser flux query result
-	result, err := queryAPI.Query(context.Background(), `from(bucket:"`+bucketName+`")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "`+measurementName+`")`)
+	result, err := queryAPI.Query(context.Background(), `from(bucket:"`+s.bucket+`")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "`+mTemperature+`")`)
 	if err == nil {
 		// Use Next() to iterate over query result lines
 		for result.Next() {
@@ -139,3 +136,4 @@ func query() {
 	// Ensures background processes finishes
 	client.Close()
 }
+*/

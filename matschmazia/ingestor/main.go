@@ -16,7 +16,11 @@ import (
 var dataStore db.Store
 
 func main() {
-	dataStore = influxdb.NewStore()
+	dataStore = influxdb.NewStore(
+		"https://eu-central-1-1.aws.cloud2.influxdata.com",
+		"galassiasoft.com",
+		"ltser-bucket",
+		"NCWF7CXKdcoOGJ-dOA4EEIl-OaTZGUZLw6cEtlTho8nI7J-iznobcrs94W8jMZjLjyPN9NX8O48iPGN6-Aq18Q==")
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
@@ -45,7 +49,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(os.Stdout, "Data arrived: %v", reading)
 
-	dataStore.Save(reading)
+	err = dataStore.Save(reading)
 
 	// TODO: Manage response to the caller.
 }
