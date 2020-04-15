@@ -40,18 +40,25 @@ func NewStore(url, org, bucket, token string) *Store {
 func (s *Store) Save(sd models.SensorData) error {
 
 	client := influxdb2.NewClient(s.url, s.token)
+	defer client.Close() // Ensures background processes finishes.
+
 	writeAPI := client.WriteApi(s.org, s.bucket)
 
+	t, err := time.Parse("2006-01-02 15:04:05", sd.Time)
+	if err != nil {
+		return err
+	}
+
 	// Temperature.
-	if t, err := strconv.ParseFloat(sd.AirTempAvg, 32); err == nil && !math.IsNaN(t) {
+	if temp, err := strconv.ParseFloat(sd.AirTempAvg, 32); err == nil && !math.IsNaN(temp) {
 		point := influxdb2.NewPointWithMeasurement(mTemperature).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "celsius").
-			AddField("avg15", t).
-			SetTime(time.Now())
+			AddField("avg15", temp).
+			SetTime(t)
 		writeAPI.WritePoint(point)
 	}
 
@@ -70,7 +77,7 @@ func (s *Store) Save(sd models.SensorData) error {
 				AddTag("unit", "m/s").
 				AddField("avg15", wsa).
 				AddField("max", wsm).
-				SetTime(time.Now())
+				SetTime(t)
 			writeAPI.WritePoint(point)
 		}
 	}
@@ -84,7 +91,7 @@ func (s *Store) Save(sd models.SensorData) error {
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "percent").
 			AddField("avg15", h).
-			SetTime(time.Now())
+			SetTime(t)
 		writeAPI.WritePoint(point)
 	}
 
@@ -99,15 +106,12 @@ func (s *Store) Save(sd models.SensorData) error {
 				AddTag("unit", "mm").
 				AddField("avg15", p).
 				AddField("show_height", sh*1000). // Scaled from m to mm.
-				SetTime(time.Now())
+				SetTime(t)
 			writeAPI.WritePoint(point)
 		}
 	}
 
-	writeAPI.Flush()
-
-	// Ensures background processes finishes
-	client.Close()
+	//writeAPI.Flush()
 
 	return nil
 }
