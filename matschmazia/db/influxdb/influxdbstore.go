@@ -44,7 +44,7 @@ func (s *Store) Save(sd models.SensorData) error {
 
 	writeAPI := client.WriteApi(s.org, s.bucket)
 
-	t, err := time.Parse("2006-01-02 15:04:05", sd.Time)
+	t, err := time.Parse("2006-01-02 15:04:05 -0700", sd.Time+" +0100") // Measurement time is (UTC +1).
 	if err != nil {
 		return err
 	}
