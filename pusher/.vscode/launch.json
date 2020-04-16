@@ -11,7 +11,8 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586080181.csv", "-h=2", "-m=5", "-u=http://localhost:8000/sensordata"]
+            //"args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586080181.csv", "-h=2", "-m=5", "-u=http://localhost:8000/sensordata"]
+            "args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586979112_15Marzo_15Aprile_2020.csv", "-h=2", "-m=-1", "-u=http://localhost:8000/sensordata"]
         }
     ]
 }

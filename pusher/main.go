@@ -74,6 +74,7 @@ func main() {
 		}
 
 		// Send data.
+		//go dataSender.Send(jsonBytes) // This will saturate "InfluDB Cloud Free" limit.
 		err = dataSender.Send(jsonBytes)
 		if err != nil {
 			log.Fatalf("An error occurred on row %v: %q. Aborting.", i, err)

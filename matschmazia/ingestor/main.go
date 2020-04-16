@@ -16,7 +16,11 @@ import (
 var dataStore db.Store
 
 func main() {
-	dataStore = influxdb.NewStore()
+	dataStore = influxdb.NewStore(
+		"https://eu-central-1-1.aws.cloud2.influxdata.com",
+		"galassiasoft.com",
+		"ltser-bucket",
+		"XsbLjQQe18PistDgB-UXFYQtf-m30tOkckoFOpjNEBbydzLsav-LflukdMl5U06bqvEfeJSKH0VR5SiZ6tqycw==")
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
@@ -45,7 +49,8 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(os.Stdout, "Data arrived: %v", reading)
 
-	dataStore.Save(reading)
+	//go dataStore.Save(reading) // This will saturate "InfluDB Cloud Free" limit.
+	err = dataStore.Save(reading)
 
 	// TODO: Manage response to the caller.
 }
