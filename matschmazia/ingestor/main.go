@@ -20,7 +20,7 @@ func main() {
 		"https://eu-central-1-1.aws.cloud2.influxdata.com",
 		"galassiasoft.com",
 		"ltser-bucket",
-		"NCWF7CXKdcoOGJ-dOA4EEIl-OaTZGUZLw6cEtlTho8nI7J-iznobcrs94W8jMZjLjyPN9NX8O48iPGN6-Aq18Q==")
+		"XsbLjQQe18PistDgB-UXFYQtf-m30tOkckoFOpjNEBbydzLsav-LflukdMl5U06bqvEfeJSKH0VR5SiZ6tqycw==")
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
