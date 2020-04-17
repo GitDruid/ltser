@@ -27,8 +27,11 @@ func (s *Sender) Send(b []byte) error {
 	if err != nil {
 		return err
 	}
+	defer r.Body.Close()
+
+	// TODO: Not safe implementation.
+	// See: https://haisum.github.io/2017/09/11/golang-ioutil-readall/
 	_, err = ioutil.ReadAll(r.Body)
-	r.Body.Close()
 	if err != nil {
 		return err
 	}
@@ -36,6 +39,5 @@ func (s *Sender) Send(b []byte) error {
 		return fmt.Errorf("response status %q", r.Status)
 	}
 
-	fmt.Print(".")
 	return nil
 }

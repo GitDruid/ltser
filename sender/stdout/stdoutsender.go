@@ -1,7 +1,10 @@
 // Package stdout provide an implementation of the sender interface to write json data to StdOut.
 package stdout // import "goex/ltser/sender/stdout"
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 // A Sender send json objects to StdOut.
 type Sender struct {
@@ -16,7 +19,7 @@ func NewSender() *Sender {
 
 // Send write json objects to StdOut.
 func (s *Sender) Send(b []byte) error {
-	fmt.Printf("%s\n", b)
+	_, err := fmt.Fprintf(os.Stdout, "%s\n", b)
 
-	return nil
+	return err
 }

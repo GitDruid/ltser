@@ -1,6 +1,6 @@
 # Pusher
 
-Pusher is a general purpose tool that reads data from a .CSV file, transform each rows in a flat JSON
+Pusher is a general purpose tool that reads data from a .CSV file, transform each row in a flat JSON
 (by using the file headers as keys and the row data as values) and either send them to StdOut or post
 them to a REST service.
 
