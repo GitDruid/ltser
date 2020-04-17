@@ -12,14 +12,14 @@ import (
 const (
 	defHeaderRows   = 1
 	defIndentFormat = false
-	defIntent       = ""
+	defIndent       = ""
 )
 
 // A Reader convert records read by a csv.Reader into json objects.
 type Reader struct {
 	HeadersRows  uint
 	IndentFormat bool
-	Intent       string
+	Indent       string
 	cr           *csv.Reader
 	headers      []string
 	rowsCount    uint
@@ -30,7 +30,7 @@ func NewReader(r csv.Reader) *Reader {
 	csvconvReder := new(Reader)
 	csvconvReder.HeadersRows = defHeaderRows
 	csvconvReder.IndentFormat = defIndentFormat
-	csvconvReder.Intent = defIntent
+	csvconvReder.Indent = defIndent
 	csvconvReder.cr = &r
 
 	return csvconvReder
@@ -93,7 +93,7 @@ func toMap(k []string, v []string) (map[string]string, error) {
 
 func doMarshal(r *Reader, v interface{}) ([]byte, error) {
 	if r.IndentFormat {
-		return json.MarshalIndent(v, "", r.Intent)
+		return json.MarshalIndent(v, "", r.Indent)
 	}
 	return json.Marshal(v)
 }
