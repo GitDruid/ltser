@@ -1,4 +1,4 @@
-// Pusher reads data from a csv file, transform each rows in a flat JSON
+// Pusher reads data from a csv file, transform each row in a flat JSON
 // and send them to StdOut or post them to a REST service.
 package main
 
