@@ -1,5 +1,7 @@
 // Pusher reads data from a csv file, transform each rows in a flat JSON
 // and send them to StdOut or post them to a REST service.
+//
+// TODO: use goroutines and a buffered channel to decouple (and make concurrent) the reading logic from the sending logic.
 package main
 
 import (
@@ -64,11 +66,10 @@ func main() {
 	for i := 0; rowsToRead < 0 || i < rowsToRead; i++ {
 		// Read data.
 		jsonBytes, err := jsonRdr.Read()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			if err == io.EOF {
-				log.Print("Finished!")
-				os.Exit(0)
-			}
 			log.Printf("Skipped malformed row #%v (%s).", i, err)
 			continue
 		}
