@@ -72,7 +72,8 @@ func main() {
 	// Open .CSV file.
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("An error occurred: %v", err)
+		fmt.Fprintf(os.Stderr, "An error occurred: %v", err)
+		os.Exit(1)
 	}
 
 	csvRdr := csv.NewReader(f)
@@ -110,47 +111,29 @@ func main() {
 		if msg.origin == senderTask {
 			onGoing--
 		}
-		if msg.err != nil {
-			if msg.isFatal {
-				log.Fatalf("An error occurred (%s). Aborted.", msg.err)
-			} else {
-				log.Printf("An error occurred (%s).", msg.err)
-			}
-		}
+		logMsg(msg)
 	}
 
 	// Reader finished. Waiting for senders to complete any pending tasks.
 	for onGoing > 0 {
 		msg = <-chControl
-		if msg.err != nil {
-			if msg.isFatal {
-				log.Fatalf("An error occurred (%s). Aborted.", msg.err)
-			} else {
-				log.Printf("An error occurred (%s).", msg.err)
-			}
-		}
+		logMsg(msg)
 		onGoing--
 	}
 
-	log.Print("Finished!")
+	fmt.Fprintln(os.Stderr, "\nFinished!")
 }
 
 func read() {
 	for i := 0; rowsToRead < 0 || i < rowsToRead; i++ {
 		jsonBytes, err := jsonRdr.Read()
-
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			chControl <- controlMsg{err: err, origin: readerTask}
-			continue
+		if err == nil {
+			chData <- jsonBytes
 		}
-
-		chData <- jsonBytes
-		//log.Printf("Inviati %v", i)
-
-		chControl <- controlMsg{origin: readerTask}
+		chControl <- controlMsg{err: err, origin: readerTask}
 	}
 
 	chControl <- controlMsg{err: io.EOF, origin: readerTask}
@@ -159,11 +142,9 @@ func read() {
 func send() {
 	for i := 0; ; i++ {
 		jsonBytes := <-chData
-		//log.Printf("ricevuti %v", i)
-
 		err := dataSender.Send(jsonBytes)
 		if err != nil {
-			chControl <- controlMsg{err: fmt.Errorf("%v - %v", i, err), isFatal: true, origin: senderTask}
+			chControl <- controlMsg{err: err, isFatal: true, origin: senderTask}
 		} else {
 			chControl <- controlMsg{origin: senderTask}
 		}
@@ -174,4 +155,18 @@ func trace(message string) func() {
 	start := time.Now()
 	log.Printf("enter %s", message)
 	return func() { log.Printf("exit %s (%s)", message, time.Since(start)) }
+}
+
+func logMsg(msg controlMsg) {
+	switch {
+	case msg.err == nil && msg.origin == readerTask:
+		fmt.Fprintf(os.Stderr, "r")
+	case msg.err == nil && msg.origin == senderTask:
+		fmt.Fprintf(os.Stderr, "s")
+	case msg.isFatal:
+		fmt.Fprintf(os.Stderr, "\nAn error occurred (%s). Aborted.", msg.err)
+		os.Exit(1)
+	default:
+		fmt.Fprintf(os.Stderr, "\nAn error occurred (%s).", msg.err)
+	}
 }
