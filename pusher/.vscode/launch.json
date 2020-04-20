@@ -12,7 +12,8 @@
             "program": "${fileDirname}",
             "env": {},
             //"args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586080181.csv", "-h=2", "-m=5", "-u=http://localhost:8000/sensordata"]
-            "args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1586979112_15Marzo_15Aprile_2020.csv", "-h=2", "-m=100", "-u=http://localhost:8000/sensordata", "-b=20", "-c=20"]
+            "args": ["-f=./data/LTSER_IT25_Matsch_Mazia_1587394652_20Marzo_20Aprile_2020.csv", "-h=2", "-m=-1", "-u=http://localhost:8000/sensordata", "-b=10", "-c=3"]
+
         }
     ]
 }

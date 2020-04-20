@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/csv"
+	"errors"
 	"flag"
 	"fmt"
 	"goex/ltser/csvjson"
@@ -38,21 +39,28 @@ type controlMsg struct {
 	err     error
 	isFatal bool
 	origin  task
+	line    uint
+}
+
+type dataMsg struct {
+	data []byte
+	line uint
 }
 
 var (
-	filename       string
-	headersRows    uint
-	rowsToRead     int
-	targetURL      string
-	bufferSize     ext.NotZeroUint32
-	maxConcurrency ext.NotZeroUint32
-	jsonRdr        csvjson.Reader
-	dataSender     sender.Sender
-	chData         chan []byte
-	chControl      chan controlMsg
-	onGoing        int
-	msg            controlMsg
+	filename        string
+	headersRows     uint
+	rowsToRead      int
+	targetURL       string
+	bufferSize      ext.NotZeroUint32
+	maxConcurrency  ext.NotZeroUint32
+	jsonRdr         csvjson.Reader
+	dataSender      sender.Sender
+	chData          chan dataMsg
+	chControl       chan controlMsg
+	errEndOfSending = errors.New("End Of Sending")
+	endOfSendingMsg = controlMsg{err: errEndOfSending, isFatal: false, origin: senderTask, line: 0}
+	totalLines      uint
 )
 
 func init() {
@@ -91,7 +99,7 @@ func main() {
 		jsonRdr.IndentFormat = false
 	}
 
-	chData = make(chan []byte, bufferSize.Value())
+	chData = make(chan dataMsg, bufferSize.Value())
 	chControl = make(chan controlMsg)
 
 	go read()
@@ -100,54 +108,65 @@ func main() {
 	}
 
 	for {
-		msg = <-chControl
+		msg := <-chControl
 
 		if msg.origin == readerTask && msg.err == io.EOF {
+			totalLines = msg.line
 			break
 		}
-		if msg.origin == readerTask {
-			onGoing++
-		}
-		if msg.origin == senderTask {
-			onGoing--
-		}
+
 		logMsg(msg)
 	}
+
+	close(chData)
 
 	// Reader finished. Waiting for senders to complete any pending tasks.
-	for onGoing > 0 {
-		msg = <-chControl
-		logMsg(msg)
-		onGoing--
+	for i := uint32(0); i < maxConcurrency.Value(); {
+		msg := <-chControl
+		if msg == endOfSendingMsg {
+			i++
+		} else {
+			logMsg(msg)
+		}
 	}
 
-	fmt.Fprintln(os.Stderr, "\nFinished!")
+	//TODO: sender fatal error. Stop reader and wait for results from other senders.
+
+	close(chControl)
+
+	fmt.Fprintf(os.Stderr, "\nFinished processing %v lines.\n", totalLines)
 }
 
 func read() {
-	for i := 0; rowsToRead < 0 || i < rowsToRead; i++ {
+	i := uint(0)
+	for i = 0; rowsToRead < 0 || i < uint(rowsToRead); i++ { // Cast only if >= 0.
 		jsonBytes, err := jsonRdr.Read()
 		if err == io.EOF {
 			break
 		}
 		if err == nil {
-			chData <- jsonBytes
+			chData <- dataMsg{data: jsonBytes, line: i}
 		}
-		chControl <- controlMsg{err: err, origin: readerTask}
+		chControl <- controlMsg{err: err, origin: readerTask, line: i}
 	}
 
-	chControl <- controlMsg{err: io.EOF, origin: readerTask}
+	chControl <- controlMsg{err: io.EOF, origin: readerTask, line: i}
 }
 
 func send() {
-	for i := 0; ; i++ {
-		jsonBytes := <-chData
-		err := dataSender.Send(jsonBytes)
-		if err != nil {
-			chControl <- controlMsg{err: err, isFatal: true, origin: senderTask}
-		} else {
-			chControl <- controlMsg{origin: senderTask}
+	for {
+		msg, more := <-chData
+		if !more {
+			chControl <- endOfSendingMsg
+			return
 		}
+
+		err := dataSender.Send(msg.data)
+		fatal := false
+		if err != nil {
+			fatal = true // TODO: Add error analysis logic here.
+		}
+		chControl <- controlMsg{err: err, isFatal: fatal, origin: senderTask, line: msg.line}
 	}
 }
 
@@ -164,9 +183,9 @@ func logMsg(msg controlMsg) {
 	case msg.err == nil && msg.origin == senderTask:
 		fmt.Fprintf(os.Stderr, "s")
 	case msg.isFatal:
-		fmt.Fprintf(os.Stderr, "\nAn error occurred (%s). Aborted.", msg.err)
+		fmt.Fprintf(os.Stderr, "\nAn error occurred on line %v (%s). Aborted.", msg.line, msg.err)
 		os.Exit(1)
 	default:
-		fmt.Fprintf(os.Stderr, "\nAn error occurred (%s).", msg.err)
+		fmt.Fprintf(os.Stderr, "\nAn error occurred on line %v (%s).", msg.line, msg.err)
 	}
 }
