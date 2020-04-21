@@ -19,6 +19,8 @@ var (
 	org    string
 	bucket string
 	token  string
+	host   string
+	port   string
 )
 
 var dataStore db.Store
@@ -28,12 +30,14 @@ func init() {
 	flag.StringVar(&org, "o", "", "Target organization.")
 	flag.StringVar(&bucket, "b", "", "Target bucket.")
 	flag.StringVar(&token, "t", "", "Auth token.")
+	flag.StringVar(&host, "h", "localhost", "Service ip.")
+	flag.StringVar(&port, "p", "8000", "Service port.")
 }
 
 func main() {
 	flag.Parse()
 
-	if url == "" || org == "" || bucket == "" || token == "" {
+	if url == "" || org == "" || bucket == "" || token == "" || host == "" || port == "" {
 		fmt.Fprintln(flag.CommandLine.Output(), "Missing or empty parameter.")
 		flag.Usage()
 		os.Exit(-1)
@@ -42,7 +46,7 @@ func main() {
 	dataStore = influxdb2.NewStore(url, org, bucket, token)
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
-	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+	log.Fatal(http.ListenAndServe(host+":"+port, nil))
 }
 
 func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
