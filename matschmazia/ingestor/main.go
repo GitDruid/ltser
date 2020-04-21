@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"goex/ltser/matschmazia/db"
-	"goex/ltser/matschmazia/db/influxdb"
+	"goex/ltser/matschmazia/db/influxdb2"
 	"goex/ltser/matschmazia/models"
 	"io/ioutil"
 	"log"
@@ -16,11 +16,11 @@ import (
 var dataStore db.Store
 
 func main() {
-	dataStore = influxdb.NewStore(
+	dataStore = influxdb2.NewStore(
 		"https://eu-central-1-1.aws.cloud2.influxdata.com",
 		"galassiasoft.com",
 		"ltser-bucket",
-		"OYc0l1TuSlcclC7eYPLhT7BCmAv57l5Jx5IYSP-bvBubd9Nu3lJtcgY2Z_gqftkzEILrhWtmh4e6DlcNHHoghA==")
+		"dTcsJtQ-JQyMPH3jYSuHpeKYYd6oySnfrlm8MiRdcCsj37hsqffkxv1rV76dsjIm0c1iGV_AuL0PBIL6cZjo-w==")
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
@@ -47,10 +47,14 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "Data arrived: %v", reading)
+	//fmt.Fprintf(os.Stdout, "Data arrived: %v\n", reading)
+	fmt.Fprintf(os.Stderr, ".")
 
 	//go dataStore.Save(reading) // This will saturate "InfluDB Cloud Free" limit.
 	err = dataStore.Save(reading)
 
+	if err != nil {
+		log.Printf("An error occurred: %v", err)
+	}
 	// TODO: Manage response to the caller.
 }

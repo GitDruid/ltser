@@ -6,7 +6,7 @@ import (
 )
 
 // NotZeroUint32 implements flag.Value interface.
-// To be used when some flags values need to be greater than 1.
+// To be used when some flags values need to be equal or greater than 1.
 type NotZeroUint32 struct {
 	number uint32
 }
