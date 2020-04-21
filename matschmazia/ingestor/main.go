@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"goex/ltser/matschmazia/db"
 	"goex/ltser/matschmazia/db/influxdb2"
@@ -13,17 +14,39 @@ import (
 	"os"
 )
 
+var (
+	url    string
+	org    string
+	bucket string
+	token  string
+	host   string
+	port   string
+)
+
 var dataStore db.Store
 
+func init() {
+	flag.StringVar(&url, "u", "", "Target url of InfluxDB instance.")
+	flag.StringVar(&org, "o", "", "Target organization.")
+	flag.StringVar(&bucket, "b", "", "Target bucket.")
+	flag.StringVar(&token, "t", "", "Auth token.")
+	flag.StringVar(&host, "h", "localhost", "Service ip.")
+	flag.StringVar(&port, "p", "8000", "Service port.")
+}
+
 func main() {
-	dataStore = influxdb2.NewStore(
-		"https://eu-central-1-1.aws.cloud2.influxdata.com",
-		"galassiasoft.com",
-		"ltser-bucket",
-		"dTcsJtQ-JQyMPH3jYSuHpeKYYd6oySnfrlm8MiRdcCsj37hsqffkxv1rV76dsjIm0c1iGV_AuL0PBIL6cZjo-w==")
+	flag.Parse()
+
+	if url == "" || org == "" || bucket == "" || token == "" || host == "" || port == "" {
+		fmt.Fprintln(flag.CommandLine.Output(), "Missing or empty parameter.")
+		flag.Usage()
+		os.Exit(-1)
+	}
+
+	dataStore = influxdb2.NewStore(url, org, bucket, token)
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
-	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+	log.Fatal(http.ListenAndServe(host+":"+port, nil))
 }
 
 func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
