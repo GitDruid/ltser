@@ -62,7 +62,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reading models.SensorData
+	var reading models.RawData
 	err = json.Unmarshal(body, &reading)
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "An error occurred: %q.", err)

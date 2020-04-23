@@ -1,8 +1,10 @@
-// Package influxdb2 provide an implementation of the store interface to save data to database.
+// Package influxdb2 provide an implementation of the db.Store interface for
+// InfluxDB v2.0 databases.
 package influxdb2 // import "goex/ltser/matschmazia/db/influxdb2"
 
 import (
 	"context"
+	"fmt"
 	"goex/ltser/matschmazia/models"
 	"math"
 	"strconv"
@@ -11,21 +13,13 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go"
 )
 
-// A Store save data to database.
+// A Store save and read data to and from an InfluxDB database.
 type Store struct {
 	url    string
 	org    string
 	bucket string
 	token  string
 }
-
-const (
-	mTemperature    = "temperature"
-	mWind           = "wind"
-	mHumidity       = "humidity"
-	mPrecipitations = "precipitations"
-	mSnow           = "snow"
-)
 
 // NewStore returns a new InfluxDB Store.
 func NewStore(url, org, bucket, token string) *Store {
@@ -38,8 +32,8 @@ func NewStore(url, org, bucket, token string) *Store {
 	return influxDbStore
 }
 
-// Save store data in InfluxDB measurements.
-func (s *Store) Save(sd models.SensorData) error {
+// Save parse raw sensors' data and store valid data into separate measurements.
+func (s *Store) Save(sd models.RawData) error {
 
 	client := influxdb2.NewClient(s.url, s.token)
 	defer client.Close() // Ensures background processes finishes.
@@ -55,7 +49,7 @@ func (s *Store) Save(sd models.SensorData) error {
 
 	// Temperature.
 	if temp, err := strconv.ParseFloat(sd.AirTempAvg, 32); err == nil && !math.IsNaN(temp) {
-		p := influxdb2.NewPointWithMeasurement(mTemperature).
+		p := influxdb2.NewPointWithMeasurement(models.Temperature.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
 			AddTag("latitude", sd.Latitude).
@@ -66,29 +60,40 @@ func (s *Store) Save(sd models.SensorData) error {
 		points = append(points, p)
 	}
 
-	// Wind.
+	// Wind Speed.
 	wsa, err := strconv.ParseFloat(sd.WindSpeedAvg, 32)
 	if err != nil || math.IsNaN(wsa) {
 		wsa, err = strconv.ParseFloat(sd.WindSpeed, 32) // In same cases values are in sd.WindSpeed, in others in sd.WindSpeedAvg.
 	}
 	if err == nil && !math.IsNaN(wsa) {
-		if wsm, err := strconv.ParseFloat(sd.WindSpeedMax, 32); err == nil && !math.IsNaN(wsm) {
-			p := influxdb2.NewPointWithMeasurement(mWind).
-				AddTag("station", sd.Station).
-				AddTag("altitude", sd.Altitude).
-				AddTag("latitude", sd.Latitude).
-				AddTag("longitude", sd.Longitude).
-				AddTag("unit", "m/s").
-				AddField("avg15", wsa).
-				AddField("max", wsm).
-				SetTime(t)
-			points = append(points, p)
-		}
+		p := influxdb2.NewPointWithMeasurement(models.WindSpeed.Name()).
+			AddTag("station", sd.Station).
+			AddTag("altitude", sd.Altitude).
+			AddTag("latitude", sd.Latitude).
+			AddTag("longitude", sd.Longitude).
+			AddTag("unit", "m/s").
+			AddField("avg15", wsa).
+			SetTime(t)
+		points = append(points, p)
+
+	}
+
+	// Wind Gust.
+	if wsm, err := strconv.ParseFloat(sd.WindSpeedMax, 32); err == nil && !math.IsNaN(wsm) {
+		p := influxdb2.NewPointWithMeasurement(models.WindGust.Name()).
+			AddTag("station", sd.Station).
+			AddTag("altitude", sd.Altitude).
+			AddTag("latitude", sd.Latitude).
+			AddTag("longitude", sd.Longitude).
+			AddTag("unit", "m/s").
+			AddField("max", wsm).
+			SetTime(t)
+		points = append(points, p)
 	}
 
 	// Humidity
 	if h, err := strconv.ParseFloat(sd.AirRelHumidityAvg, 32); err == nil && !math.IsNaN(h) {
-		p := influxdb2.NewPointWithMeasurement(mHumidity).
+		p := influxdb2.NewPointWithMeasurement(models.Humidity.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
 			AddTag("latitude", sd.Latitude).
@@ -101,7 +106,7 @@ func (s *Store) Save(sd models.SensorData) error {
 
 	// Precipitations.
 	if pa, err := strconv.ParseFloat(sd.PrecipRtNrtTot, 32); err == nil && !math.IsNaN(pa) {
-		p := influxdb2.NewPointWithMeasurement(mPrecipitations).
+		p := influxdb2.NewPointWithMeasurement(models.Precipitations.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
 			AddTag("latitude", sd.Latitude).
@@ -114,7 +119,7 @@ func (s *Store) Save(sd models.SensorData) error {
 
 	// Snow.
 	if sh, err := strconv.ParseFloat(sd.SnowHeight, 32); err == nil && !math.IsNaN(sh) {
-		p := influxdb2.NewPointWithMeasurement(mSnow).
+		p := influxdb2.NewPointWithMeasurement(models.Snow.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
 			AddTag("latitude", sd.Latitude).
@@ -130,14 +135,19 @@ func (s *Store) Save(sd models.SensorData) error {
 	return err
 }
 
-/*
-func (s *Store) Query() error {
+func (s *Store) Read(m models.Measurement, rStart, rStop string) error {
 	client := influxdb2.NewClient(s.url, s.token)
+	defer client.Close() // Ensures background processes finishes.
+
 	queryAPI := client.QueryApi(s.org)
 
-	result, err := queryAPI.Query(context.Background(), `from(bucket:"`+s.bucket+`")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "`+mTemperature+`")`)
+	result, err := queryAPI.Query(context.Background(),
+		fmt.Sprintf(
+			`from(bucket:%q)
+			|> range(start: %s, stop: %s) 
+			|> filter(fn: (r) => r._measurement == %q)`, s.bucket, rStart, rStop, m))
+
 	if err == nil {
-		// Use Next() to iterate over query result lines
 		for result.Next() {
 			// Observe when there is new grouping key producing new table
 			if result.TableChanged() {
@@ -147,11 +157,9 @@ func (s *Store) Query() error {
 			fmt.Printf("row: %s\n", result.Record().String())
 		}
 		if result.Err() != nil {
-			fmt.Printf("Query error: %s\n", result.Err().Error())
+			err = result.Err()
 		}
 	}
 
-	// Ensures background processes finishes
-	client.Close()
+	return err
 }
-*/

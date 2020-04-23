@@ -1,9 +1,9 @@
 // Package models provide common data structures for matschmazia tools.
 package models // import "goex/ltser/matschmazia/models"
 
-// SensorData contains the raw data coming from the sensors (all in string format).
+// RawData contains the raw data coming from the sensors (all in string format).
 // More information on: https://browser.lter.eurac.edu/p/info.md
-type SensorData struct {
+type RawData struct {
 	Time              string `json:"time"`              // Date/time of measurement (UTC +1).
 	Station           string `json:"station"`           // Station code.
 	Landuse           string `json:"landuse"`           // me = meadows, pa = pasture, bs = bare soil, fo = forest
