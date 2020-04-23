@@ -135,7 +135,8 @@ func (s *Store) Save(sd models.RawData) error {
 	return err
 }
 
-func (s *Store) Read(m models.Measurement, rStart, rStop string) error {
+func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (res []float64, err error) {
+	res = make([]float64, 0)
 	client := influxdb2.NewClient(s.url, s.token)
 	defer client.Close() // Ensures background processes finishes.
 
@@ -145,7 +146,7 @@ func (s *Store) Read(m models.Measurement, rStart, rStop string) error {
 		fmt.Sprintf(
 			`from(bucket:%q)
 			|> range(start: %s, stop: %s) 
-			|> filter(fn: (r) => r._measurement == %q)`, s.bucket, rStart, rStop, m))
+			|> filter(fn: (r) => r._measurement == %q and r.station == %q)`, s.bucket, rStart, rStop, m, station))
 
 	if err == nil {
 		for result.Next() {
@@ -154,12 +155,14 @@ func (s *Store) Read(m models.Measurement, rStart, rStop string) error {
 				fmt.Printf("table: %s\n", result.TableMetadata().String())
 			}
 			// read result
-			fmt.Printf("row: %s\n", result.Record().String())
+			r := result.Record()
+			res = append(res, r.Value().(float64))
+			fmt.Printf("row: %s\n", r.String())
 		}
 		if result.Err() != nil {
 			err = result.Err()
 		}
 	}
 
-	return err
+	return
 }

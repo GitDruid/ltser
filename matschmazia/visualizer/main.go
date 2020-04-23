@@ -7,6 +7,9 @@ import (
 	"goex/ltser/matschmazia/db/influxdb2"
 	"goex/ltser/matschmazia/models"
 	"os"
+
+	"github.com/gitdruid/adf"
+	//"github.com/berkmancenter/adf"
 )
 
 var (
@@ -37,8 +40,20 @@ func main() {
 	dataStore = influxdb2.NewStore(url, org, bucket, token)
 
 	//err := dataStore.Read(models.Temperature, "-15h", "now()")
-	err := dataStore.Read(models.Temperature, "2020-04-01T00:00:00Z", "2020-04-02T00:00:00Z")
+	res, err := dataStore.Read(models.WindSpeed, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
 	if err != nil {
-		fmt.Printf("An error occurred: %q", err)
+		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
+		os.Exit(1)
 	}
+
+	test, err := adf.New(res, 0, -1)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
+		os.Exit(2)
+	}
+
+	test.Run()
+
+	fmt.Printf("Values in the series: %v\n", len(res))
+	fmt.Printf("Is stationary: %v\n", test.IsStationary())
 }
