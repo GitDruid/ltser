@@ -6,6 +6,7 @@ import (
 	"goex/ltser/matschmazia/db"
 	"goex/ltser/matschmazia/db/influxdb2"
 	"goex/ltser/matschmazia/models"
+	"goex/ltser/stats"
 	"os"
 
 	"github.com/gitdruid/adf"
@@ -39,8 +40,13 @@ func main() {
 
 	dataStore = influxdb2.NewStore(url, org, bucket, token)
 
+	//Relative
 	//err := dataStore.Read(models.Temperature, "-15h", "now()")
-	res, err := dataStore.Read(models.WindSpeed, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
+
+	//Empty series.
+	//res, err := dataStore.Read(models.WindSpeed, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
+
+	res, err := dataStore.Read(models.Snow, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(1)
@@ -56,4 +62,22 @@ func main() {
 
 	fmt.Printf("Values in the series: %v\n", len(res))
 	fmt.Printf("Is stationary: %v\n", test.IsStationary())
+
+	fixed, idx, err := stats.Hampel(res, 10, 5)
+
+	for _, i := range idx {
+		fmt.Printf("Value #%v (originally %g) was replaced by %g.\n", i, res[i], fixed[i])
+	}
+	fmt.Printf("Total fixed: %v\n", len(idx))
+
+	// // TEST DEI CAMPIONI FIXATI
+	// test, err = adf.New(fixed, 0, -1)
+	// if err != nil {
+	// 	fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
+	// 	os.Exit(2)
+	// }
+
+	// test.Run()
+	// fmt.Printf("Values in the series: %v\n", len(res))
+	// fmt.Printf("Is stationary: %v\n", test.IsStationary())
 }
