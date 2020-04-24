@@ -1,4 +1,4 @@
-// Package influxdb2 provide an implementation of the db.Store interface for
+// Package influxdb2 provide an implementation of the db.ReadWriter interface for
 // InfluxDB v2.0 databases.
 package influxdb2 // import "goex/ltser/matschmazia/db/influxdb2"
 
@@ -33,7 +33,7 @@ func NewStore(url, org, bucket, token string) *Store {
 }
 
 // Save parse raw sensors' data and store valid data into separate measurements.
-func (s *Store) Save(sd models.RawData) error {
+func (s *Store) Write(sd models.RawData) error {
 
 	client := influxdb2.NewClient(s.url, s.token)
 	defer client.Close() // Ensures background processes finishes.
@@ -135,6 +135,7 @@ func (s *Store) Save(sd models.RawData) error {
 	return err
 }
 
+// Read data from a give measurement, time interval and station.
 func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (res []float64, err error) {
 	res = make([]float64, 0)
 	client := influxdb2.NewClient(s.url, s.token)

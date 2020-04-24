@@ -23,7 +23,7 @@ var (
 	port   string
 )
 
-var dataStore db.Store
+var dataStore db.Writer
 
 func init() {
 	flag.StringVar(&url, "u", "", "Target url of InfluxDB instance.")
@@ -74,7 +74,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(os.Stderr, ".")
 
 	//go dataStore.Save(reading) // This will saturate "InfluDB Cloud Free" limit.
-	err = dataStore.Save(reading)
+	err = dataStore.Write(reading)
 
 	if err != nil {
 		log.Printf("An error occurred: %v", err)

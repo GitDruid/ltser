@@ -20,7 +20,7 @@ var (
 	token  string
 )
 
-var dataStore db.Store
+var dataStore db.Reader
 
 func init() {
 	flag.StringVar(&url, "u", "", "Target url of InfluxDB instance.")
