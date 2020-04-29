@@ -34,6 +34,15 @@ func NewStore(url, org, bucket, token string) *Store {
 	return influxDbStore
 }
 
+const (
+	temperatureFieldName    = "avg15"
+	windSpeedFieldName      = "avg15"
+	windGustFieldName       = "max"
+	humidityFieldName       = "avg15"
+	precipitationsFieldName = "avg15"
+	snowFieldName           = "height"
+)
+
 // Save parse raw sensors' data and store valid data into separate measurements.
 func (s *Store) Write(sd models.RawData) error {
 
@@ -57,7 +66,7 @@ func (s *Store) Write(sd models.RawData) error {
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "celsius").
-			AddField("avg15", temp).
+			AddField(temperatureFieldName, temp).
 			SetTime(t)
 		points = append(points, p)
 	}
@@ -74,10 +83,9 @@ func (s *Store) Write(sd models.RawData) error {
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "m/s").
-			AddField("avg15", wsa).
+			AddField(windSpeedFieldName, wsa).
 			SetTime(t)
 		points = append(points, p)
-
 	}
 
 	// Wind Gust.
@@ -88,7 +96,7 @@ func (s *Store) Write(sd models.RawData) error {
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "m/s").
-			AddField("max", wsm).
+			AddField(windGustFieldName, wsm).
 			SetTime(t)
 		points = append(points, p)
 	}
@@ -101,7 +109,7 @@ func (s *Store) Write(sd models.RawData) error {
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "percent").
-			AddField("avg15", h).
+			AddField(humidityFieldName, h).
 			SetTime(t)
 		points = append(points, p)
 	}
@@ -114,7 +122,7 @@ func (s *Store) Write(sd models.RawData) error {
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "mm").
-			AddField("avg15", pa).
+			AddField(precipitationsFieldName, pa).
 			SetTime(t)
 		points = append(points, p)
 	}
@@ -127,8 +135,47 @@ func (s *Store) Write(sd models.RawData) error {
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "m").
-			AddField("height", sh).
+			AddField(snowFieldName, sh).
 			SetTime(t)
+		points = append(points, p)
+	}
+
+	err = writeAPI.WritePoint(context.Background(), points...)
+
+	return err
+}
+
+// WriteObservations save a series of temporal values measurements.
+func (s *Store) WriteObservations(o models.Observations) error {
+
+	var points = make([]*influxdb2.Point, len(o.Measures))
+	var measure = o.Measurement.Name()
+	var fieldName string
+
+	switch o.Measurement {
+	case models.Temperature:
+		fieldName = temperatureFieldName
+	case models.WindSpeed:
+		fieldName = windSpeedFieldName
+	case models.WindGust:
+		fieldName = windGustFieldName
+	case models.Humidity:
+		fieldName = humidityFieldName
+	case models.Precipitations:
+		fieldName = precipitationsFieldName
+	case models.Snow:
+		fieldName = snowFieldName
+	}
+
+	for i, tv := range o.Measures {
+		p := influxdb2.NewPointWithMeasurement(measure).
+			AddTag("station", o.Station.Name).
+			AddTag("altitude", o.Station.Altitude).
+			AddTag("latitude", o.Station.Latitude).
+			AddTag("longitude", o.Station.Longitude).
+			AddTag("unit", o.Measurement.Unit()).
+			AddField(fieldName, tv.Value).
+			SetTime(tv.Time)
 		points = append(points, p)
 	}
 

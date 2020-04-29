@@ -10,6 +10,7 @@ import (
 // A Writer save matschmazia sensors' data.
 type Writer interface {
 	Write(sd models.RawData) error
+	WriteObservations(o models.Observations) error
 }
 
 // ObservationsIterator allows to iterate a sequence of TimeValues.
