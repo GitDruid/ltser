@@ -173,7 +173,7 @@ func (s *Store) ReadAll(m models.Measurement, rStart, rStop, station string) (re
 
 // ReadAll data from a given measurement, time interval and station.
 // In case of errors, the slice will contains data eventually read before the error happens.
-func (s *Store) ReadAll(m models.Measurement, rStart, rStop, station string) ([]float64, error) {
+func (s *Store) ReadAll(m models.Measurement, rStart, rStop time.Time, station string) ([]float64, error) {
 
 	result, err := s.Read(m, rStart, rStop, station)
 	if err != nil {
@@ -201,7 +201,7 @@ func (s *Store) ReadAll(m models.Measurement, rStart, rStop, station string) ([]
 
 // Read returns a Result that needs to be iterated to obtain
 // data from a given measurement, time interval and station.
-func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (db.Iterator, error) {
+func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station string) (db.Iterator, error) {
 	client := influxdb2.NewClient(s.url, s.token)
 	defer client.Close() // Ensures background processes finishes.
 
@@ -211,7 +211,8 @@ func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (db.It
 		fmt.Sprintf(
 			`from(bucket:%q)
 			|> range(start: %s, stop: %s) 
-			|> filter(fn: (r) => r._measurement == %q and r.station == %q)`, s.bucket, rStart, rStop, m, station))
+			|> filter(fn: (r) => r._measurement == %q and r.station == %q)`,
+			s.bucket, rStart.Format(time.RFC3339), rStop.Format(time.RFC3339), m, station))
 
 	if err != nil {
 		return nil, err

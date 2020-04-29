@@ -8,6 +8,7 @@ import (
 	"goex/ltser/matschmazia/models"
 	"goex/ltser/stats"
 	"os"
+	"time"
 
 	"github.com/gitdruid/adf"
 	//"github.com/berkmancenter/adf"
@@ -45,8 +46,10 @@ func main() {
 
 	//Empty series.
 	//res, err := dataStore.Read(models.WindSpeed, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
+	from, _ := time.Parse(time.RFC3339, "2020-03-20T00:00:00Z")
+	to, _ := time.Parse(time.RFC3339, "2020-04-20T23:59:00Z")
 
-	res, err := dataStore.ReadAll(models.Snow, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
+	res, err := dataStore.ReadAll(models.Snow, from, to, "b1")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(1)

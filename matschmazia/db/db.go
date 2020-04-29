@@ -1,7 +1,10 @@
 // Package db provide interfaces to save and read matschmazia sensors' data.
 package db // import "goex/ltser/matschmazia/db"
 
-import "goex/ltser/matschmazia/models"
+import (
+	"goex/ltser/matschmazia/models"
+	"time"
+)
 
 // A Writer save matschmazia sensors' data.
 type Writer interface {
@@ -15,8 +18,8 @@ type Iterator interface {
 
 // A Reader read matschmazia sensors' data.
 type Reader interface {
-	Read(m models.Measurement, rStart, rStop, station string) (Iterator, error)
-	ReadAll(m models.Measurement, rStart, rStop, station string) ([]float64, error)
+	Read(m models.Measurement, rStart, rStop time.Time, station string) (Iterator, error)
+	ReadAll(m models.Measurement, rStart, rStop time.Time, station string) ([]float64, error)
 }
 
 // A ReadWriter read and save matschmazia sensors' data.
