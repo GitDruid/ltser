@@ -57,8 +57,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(1)
 	}
+	seriesValues := res.Measures.FloatValues()
 
-	test, err := adf.New(res, 0, -1)
+	test, err := adf.New(seriesValues, 0, -1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(2)
@@ -66,24 +67,24 @@ func main() {
 
 	test.Run()
 
-	fmt.Printf("Values in the series: %v\n", len(res))
+	fmt.Printf("Values in the series: %v\n", len(seriesValues))
 	fmt.Printf("Is stationary: %v\n", test.IsStationary())
 
-	fixed, idx, err := stats.Hampel(res, 10, 5)
+	fixed, idx, err := stats.Hampel(seriesValues, 10, 5)
 
 	for _, i := range idx {
-		fmt.Printf("Value #%v (originally %g) was replaced by %g.\n", i, res[i], fixed[i])
+		fmt.Printf("Value #%v (originally %g) was replaced by %g.\n", i, seriesValues[i], fixed[i])
 	}
 	fmt.Printf("Total fixed: %v\n", len(idx))
 
-	// // TEST DEI CAMPIONI FIXATI
-	// test, err = adf.New(fixed, 0, -1)
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
-	// 	os.Exit(2)
-	// }
+	// TEST DEI CAMPIONI FIXATI
+	test, err = adf.New(fixed, 0, -1)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
+		os.Exit(2)
+	}
 
-	// test.Run()
-	// fmt.Printf("Values in the series: %v\n", len(res))
-	// fmt.Printf("Is stationary: %v\n", test.IsStationary())
+	test.Run()
+	fmt.Printf("Values in the series: %v\n", len(fixed))
+	fmt.Printf("Is stationary: %v\n", test.IsStationary())
 }

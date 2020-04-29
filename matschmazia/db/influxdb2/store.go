@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"goex/ltser/matschmazia/db"
 	"goex/ltser/matschmazia/models"
+	"goex/ltser/timeseries"
 	"math"
 	"strconv"
 	"time"
@@ -138,14 +139,17 @@ func (s *Store) Write(sd models.RawData) error {
 
 // ReadAll data from a given measurement, time interval and station.
 // In case of errors, the slice will contains data eventually read before the error happens.
-func (s *Store) ReadAll(m models.Measurement, rStart, rStop time.Time, station string) ([]float64, error) {
+func (s *Store) ReadAll(m models.Measurement, rStart, rStop time.Time, station string) (*models.Observations, error) {
 
 	result, err := s.Read(m, rStart, rStop, station)
 	if err != nil {
 		return nil, err
 	}
 
-	series := make([]float64, 0)
+	o := models.Observations{
+		Station:     result.Station(),
+		Measurement: result.Measurement(),
+		Measures:    timeseries.TimeSeries{}}
 
 	for {
 		val, e := result.Next()
@@ -158,15 +162,15 @@ func (s *Store) ReadAll(m models.Measurement, rStart, rStop time.Time, station s
 			break
 		}
 
-		series = append(series, val)
+		o.Measures.AddWithTime(*val)
 	}
 
-	return series, err
+	return &o, err
 }
 
 // Read returns a Result that needs to be iterated to obtain
 // data from a given measurement, time interval and station.
-func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station string) (db.Iterator, error) {
+func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station string) (db.ObservationsIterator, error) {
 	client := influxdb2.NewClient(s.url, s.token)
 	defer client.Close() // Ensures background processes finishes.
 
@@ -184,5 +188,26 @@ func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station stri
 	}
 
 	var r = Result{queryResult: qr}
-	return db.Iterator(r), err
+
+	// First record is read here. The others are read in the Iterator.
+	if r.queryResult.Next() {
+		i, _ := strconv.ParseInt(r.queryResult.Record().ValueByKey("altitude").(string), 10, 32)
+		r.station.Altitude = int32(i)
+		f, _ := strconv.ParseFloat(r.queryResult.Record().ValueByKey("latitude").(string), 32)
+		r.station.Latitude = float32(f)
+		f, _ = strconv.ParseFloat(r.queryResult.Record().ValueByKey("longitude").(string), 32)
+		r.station.Longitude = float32(f)
+		r.station.Name = r.queryResult.Record().ValueByKey("station").(string)
+		r.measurement = m
+		r.currentError = r.queryResult.Err()
+		r.currentValue = &timeseries.TimeValue{
+			Time:  r.queryResult.Record().Time(),
+			Value: r.queryResult.Record().Value(),
+		}
+	} else {
+		r.currentError = ErrEndOfRecords
+		r.currentValue = nil
+	}
+
+	return db.ObservationsIterator(&r), err
 }

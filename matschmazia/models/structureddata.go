@@ -1,8 +1,8 @@
-package models
+package models // import "goex/ltser/matschmazia/models"
 
-import "time"
+import "goex/ltser/timeseries"
 
-// Measurement represent a measure.
+// Measurement represents a measure type.
 type Measurement struct {
 	name     string
 	unit     string
@@ -33,41 +33,22 @@ var (
 	Snow           = Measurement{"snow", "m", ""} // Undocumented interval.
 )
 
-// Location represent a geographic position.
+// Location represents a geographic position.
 type Location struct {
-	Altitude  int
+	Altitude  int32
 	Latitude  float32
 	Longitude float32
 }
 
-// Station represent a sensor station.
+// Station represents a sensor station.
 type Station struct {
 	Location
 	Name string
 }
 
-// TimeValue represent a single value in time.
-type TimeValue struct {
-	Time  time.Time
-	Value float32
-}
-
-// Series represent a collection of Measure in time from a given sensor.
-type Series struct {
+// Observations represents a collection of historical Measures from a given Matsch/Mazia sensor station.
+type Observations struct {
 	Station
 	Measurement
-	Measures []TimeValue
-}
-
-// Measure represent a single measure.
-type Measure struct {
-	Measurement
-	Value float32
-}
-
-// SimplePoint represent a Measure in time from a sensor.
-type SimplePoint struct {
-	Station
-	Time time.Time
-	Measure
+	Measures timeseries.TimeSeries
 }
