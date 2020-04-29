@@ -52,8 +52,8 @@ var (
 	headersRows     uint
 	rowsToRead      int
 	targetURL       string
-	bufferSize      ext.NotZeroUint32
-	maxConcurrency  ext.NotZeroUint32
+	bufferSize      ext.NotZeroUint32Flag
+	maxConcurrency  ext.NotZeroUint32Flag
 	jsonRdr         csvjson.Reader
 	dataSender      sender.Sender
 	chData          chan dataMsg

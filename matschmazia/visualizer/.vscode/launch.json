@@ -15,7 +15,11 @@
                 "-u=https://eu-central-1-1.aws.cloud2.influxdata.com",
                 "-o=galassiasoft.com",
                 "-b=ltser-bucket",
-                "-t=dTcsJtQ-JQyMPH3jYSuHpeKYYd6oySnfrlm8MiRdcCsj37hsqffkxv1rV76dsjIm0c1iGV_AuL0PBIL6cZjo-w=="]
+                "-t=dTcsJtQ-JQyMPH3jYSuHpeKYYd6oySnfrlm8MiRdcCsj37hsqffkxv1rV76dsjIm0c1iGV_AuL0PBIL6cZjo-w==",
+                "-from=2020-03-20T00:00:00Z",
+                "-to=2020-04-20T23:59:00Z",
+                "-station=b1"
+            ]
         }
     ]
 }

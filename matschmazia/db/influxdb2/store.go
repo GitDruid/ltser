@@ -136,41 +136,6 @@ func (s *Store) Write(sd models.RawData) error {
 	return err
 }
 
-/*
-// ReadAll data from a given measurement, time interval and station.
-func (s *Store) ReadAll(m models.Measurement, rStart, rStop, station string) (res []float64, err error) {
-	res = make([]float64, 0)
-	client := influxdb2.NewClient(s.url, s.token)
-	defer client.Close() // Ensures background processes finishes.
-
-	queryAPI := client.QueryApi(s.org)
-
-	result, err := queryAPI.Query(context.Background(),
-		fmt.Sprintf(
-			`from(bucket:%q)
-			|> range(start: %s, stop: %s)
-			|> filter(fn: (r) => r._measurement == %q and r.station == %q)`, s.bucket, rStart, rStop, m, station))
-
-	if err == nil {
-		for result.Next() {
-			// Observe when there is new grouping key producing new table
-			if result.TableChanged() {
-				fmt.Printf("table: %s\n", result.TableMetadata().String())
-			}
-			// read result
-			r := result.Record()
-			res = append(res, r.Value().(float64))
-			fmt.Printf("row: %s\n", r.String())
-		}
-		if result.Err() != nil {
-			err = result.Err()
-		}
-	}
-
-	return
-}
-*/
-
 // ReadAll data from a given measurement, time interval and station.
 // In case of errors, the slice will contains data eventually read before the error happens.
 func (s *Store) ReadAll(m models.Measurement, rStart, rStop time.Time, station string) ([]float64, error) {

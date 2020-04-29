@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	ext "goex/ltser/extensions"
 	"goex/ltser/matschmazia/db"
 	"goex/ltser/matschmazia/db/influxdb2"
 	"goex/ltser/matschmazia/models"
@@ -15,10 +16,13 @@ import (
 )
 
 var (
-	url    string
-	org    string
-	bucket string
-	token  string
+	url     string
+	org     string
+	bucket  string
+	token   string
+	from    ext.DateTimeFlag
+	to      ext.DateTimeFlag
+	station string
 )
 
 var dataStore db.Reader
@@ -28,28 +32,27 @@ func init() {
 	flag.StringVar(&org, "o", "", "Target organization.")
 	flag.StringVar(&bucket, "b", "", "Target bucket.")
 	flag.StringVar(&token, "t", "", "Auth token.")
+	flag.Var(&from, "from", "Start time (RFC3339 format).")
+	flag.Var(&to, "to", "Finish time (RFC3339 format).")
+	flag.StringVar(&station, "station", "", "Sensor station.")
 }
 
 func main() {
 	flag.Parse()
 
-	if url == "" || org == "" || bucket == "" || token == "" {
+	if url == "" || org == "" || bucket == "" || token == "" || from.Value().IsZero() || station == "" {
 		fmt.Fprintln(flag.CommandLine.Output(), "Missing or empty parameter.")
 		flag.Usage()
 		os.Exit(-1)
 	}
 
+	if to.Value().IsZero() {
+		to.Set(time.Now().Format(time.RFC3339))
+	}
+
 	dataStore = influxdb2.NewStore(url, org, bucket, token)
 
-	//Relative
-	//err := dataStore.Read(models.Temperature, "-15h", "now()")
-
-	//Empty series.
-	//res, err := dataStore.Read(models.WindSpeed, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
-	from, _ := time.Parse(time.RFC3339, "2020-03-20T00:00:00Z")
-	to, _ := time.Parse(time.RFC3339, "2020-04-20T23:59:00Z")
-
-	res, err := dataStore.ReadAll(models.Snow, from, to, "b1")
+	res, err := dataStore.ReadAll(models.Snow, from.Value(), to.Value(), station)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(1)
