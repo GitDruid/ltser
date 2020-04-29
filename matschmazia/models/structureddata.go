@@ -46,6 +46,19 @@ type Station struct {
 	Name string
 }
 
+// TimeValue represent a single value in time.
+type TimeValue struct {
+	Time  time.Time
+	Value float32
+}
+
+// Series represent a collection of Measure in time from a given sensor.
+type Series struct {
+	Station
+	Measurement
+	Measures []TimeValue
+}
+
 // Measure represent a single measure.
 type Measure struct {
 	Measurement
@@ -57,11 +70,4 @@ type SimplePoint struct {
 	Station
 	Time time.Time
 	Measure
-}
-
-// MultiValuePoint represent a point with multiple measures.
-type MultiValuePoint struct {
-	Station
-	Time     time.Time
-	Measures []Measure
 }

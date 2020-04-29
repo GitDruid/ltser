@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 )
 
@@ -43,6 +44,11 @@ func main() {
 		os.Exit(-1)
 	}
 
+	// Profiling service.
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	dataStore = influxdb2.NewStore(url, org, bucket, token)
 
 	http.HandleFunc("/sensordata", sensorDataHandler)
@@ -55,29 +61,29 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 	// Not safe implementation: just for testing purpose.
 	// See: https://haisum.github.io/2017/09/11/golang-ioutil-readall/
 	body, err := ioutil.ReadAll(r.Body)
-	r.Body.Close()
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "An error occurred: %q.", err)
-		fmt.Fprintf(w, "An error occurred: %q.", err) //TODO: Improve response.
+		log.Printf("An error occurred: %q.\n", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
 	var reading models.RawData
 	err = json.Unmarshal(body, &reading)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "An error occurred: %q.", err)
-		fmt.Fprintf(w, "An error occurred: %q.", err) //TODO: Improve response.
+		log.Printf("An error occurred: %q.\n", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	//fmt.Fprintf(os.Stdout, "Data arrived: %v\n", reading)
-	fmt.Fprintf(os.Stderr, ".")
+	log.Print(".")
 
-	//go dataStore.Save(reading) // This will saturate "InfluDB Cloud Free" limit.
 	err = dataStore.Write(reading)
-
 	if err != nil {
-		log.Printf("An error occurred: %v", err)
+		log.Printf("An error occurred: %q.", err)
+		http.Error(w, "unable to save data", http.StatusInternalServerError)
+		return
 	}
-	// TODO: Manage response to the caller.
+
+	http.Error(w, "success", http.StatusOK)
 }

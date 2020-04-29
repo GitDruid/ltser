@@ -5,6 +5,7 @@ package influxdb2 // import "goex/ltser/matschmazia/db/influxdb2"
 import (
 	"context"
 	"fmt"
+	"goex/ltser/matschmazia/db"
 	"goex/ltser/matschmazia/models"
 	"math"
 	"strconv"
@@ -135,8 +136,9 @@ func (s *Store) Write(sd models.RawData) error {
 	return err
 }
 
-// Read data from a give measurement, time interval and station.
-func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (res []float64, err error) {
+/*
+// ReadAll data from a given measurement, time interval and station.
+func (s *Store) ReadAll(m models.Measurement, rStart, rStop, station string) (res []float64, err error) {
 	res = make([]float64, 0)
 	client := influxdb2.NewClient(s.url, s.token)
 	defer client.Close() // Ensures background processes finishes.
@@ -146,7 +148,7 @@ func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (res [
 	result, err := queryAPI.Query(context.Background(),
 		fmt.Sprintf(
 			`from(bucket:%q)
-			|> range(start: %s, stop: %s) 
+			|> range(start: %s, stop: %s)
 			|> filter(fn: (r) => r._measurement == %q and r.station == %q)`, s.bucket, rStart, rStop, m, station))
 
 	if err == nil {
@@ -166,4 +168,55 @@ func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (res [
 	}
 
 	return
+}
+*/
+
+// ReadAll data from a given measurement, time interval and station.
+// In case of errors, the slice will contains data eventually read before the error happens.
+func (s *Store) ReadAll(m models.Measurement, rStart, rStop, station string) ([]float64, error) {
+
+	result, err := s.Read(m, rStart, rStop, station)
+	if err != nil {
+		return nil, err
+	}
+
+	series := make([]float64, 0)
+
+	for {
+		val, e := result.Next()
+		if e == ErrEndOfRecords {
+			break
+		}
+
+		if e != nil {
+			err = e
+			break
+		}
+
+		series = append(series, val)
+	}
+
+	return series, err
+}
+
+// Read returns a Result that needs to be iterated to obtain
+// data from a given measurement, time interval and station.
+func (s *Store) Read(m models.Measurement, rStart, rStop, station string) (db.Iterator, error) {
+	client := influxdb2.NewClient(s.url, s.token)
+	defer client.Close() // Ensures background processes finishes.
+
+	queryAPI := client.QueryApi(s.org)
+
+	qr, err := queryAPI.Query(context.Background(),
+		fmt.Sprintf(
+			`from(bucket:%q)
+			|> range(start: %s, stop: %s) 
+			|> filter(fn: (r) => r._measurement == %q and r.station == %q)`, s.bucket, rStart, rStop, m, station))
+
+	if err != nil {
+		return nil, err
+	}
+
+	var r = Result{queryResult: qr}
+	return db.Iterator(r), err
 }

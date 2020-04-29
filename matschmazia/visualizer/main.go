@@ -46,7 +46,7 @@ func main() {
 	//Empty series.
 	//res, err := dataStore.Read(models.WindSpeed, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
 
-	res, err := dataStore.Read(models.Snow, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
+	res, err := dataStore.ReadAll(models.Snow, "2020-03-20T00:00:00Z", "2020-04-20T23:59:00Z", "b1")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(1)
