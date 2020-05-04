@@ -35,7 +35,7 @@ var (
 
 // Location represents a geographic position.
 type Location struct {
-	Altitude  int32
+	Altitude  int
 	Latitude  float32
 	Longitude float32
 }

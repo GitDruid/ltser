@@ -5,6 +5,7 @@ package influxdb2 // import "goex/ltser/matschmazia/db/influxdb2"
 import (
 	"context"
 	"fmt"
+	ext "goex/ltser/extensions"
 	"goex/ltser/matschmazia/db"
 	"goex/ltser/matschmazia/models"
 	"goex/ltser/timeseries"
@@ -167,19 +168,23 @@ func (s *Store) WriteObservations(o models.Observations) error {
 		fieldName = snowFieldName
 	}
 
-	for i, tv := range o.Measures {
+	for _, tv := range o.Measures {
 		p := influxdb2.NewPointWithMeasurement(measure).
 			AddTag("station", o.Station.Name).
-			AddTag("altitude", o.Station.Altitude).
-			AddTag("latitude", o.Station.Latitude).
-			AddTag("longitude", o.Station.Longitude).
+			AddTag("altitude", strconv.Itoa(o.Station.Altitude)).
+			AddTag("latitude", ext.FormatFloat32(o.Station.Latitude)).
+			AddTag("longitude", ext.FormatFloat32(o.Station.Longitude)).
 			AddTag("unit", o.Measurement.Unit()).
 			AddField(fieldName, tv.Value).
 			SetTime(tv.Time)
 		points = append(points, p)
 	}
 
-	err = writeAPI.WritePoint(context.Background(), points...)
+	client := influxdb2.NewClient(s.url, s.token)
+	defer client.Close() // Ensures background processes finishes.
+
+	writeAPI := client.WriteApiBlocking(s.org, s.bucket)
+	err := writeAPI.WritePoint(context.Background(), points...)
 
 	return err
 }
@@ -238,12 +243,9 @@ func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station stri
 
 	// First record is read here. The others are read in the Iterator.
 	if r.queryResult.Next() {
-		i, _ := strconv.ParseInt(r.queryResult.Record().ValueByKey("altitude").(string), 10, 32)
-		r.station.Altitude = int32(i)
-		f, _ := strconv.ParseFloat(r.queryResult.Record().ValueByKey("latitude").(string), 32)
-		r.station.Latitude = float32(f)
-		f, _ = strconv.ParseFloat(r.queryResult.Record().ValueByKey("longitude").(string), 32)
-		r.station.Longitude = float32(f)
+		r.station.Altitude = ext.TryParseInt(r.queryResult.Record().ValueByKey("altitude"))
+		r.station.Latitude = ext.TryParseFloat32(r.queryResult.Record().ValueByKey("latitude"))
+		r.station.Longitude = ext.TryParseFloat32(r.queryResult.Record().ValueByKey("longitude"))
 		r.station.Name = r.queryResult.Record().ValueByKey("station").(string)
 		r.measurement = m
 		r.currentError = r.queryResult.Err()
