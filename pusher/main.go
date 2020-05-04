@@ -102,42 +102,31 @@ func main() {
 	chData = make(chan dataMsg, bufferSize.Value())
 	chControl = make(chan controlMsg)
 
-	go read()
+	go read(chData, chControl, &totalLines)
 	for i := uint32(0); i < maxConcurrency.Value(); i++ {
-		go send()
+		go send(chData, chControl)
 	}
+
+	var endOfSendCount uint32
 
 	for {
 		msg := <-chControl
 
-		if msg.origin == readerTask && msg.err == io.EOF {
-			totalLines = msg.line
-			break
-		}
-
-		logMsg(msg)
-	}
-
-	close(chData)
-
-	// Reader finished. Waiting for senders to complete any pending tasks.
-	for i := uint32(0); i < maxConcurrency.Value(); {
-		msg := <-chControl
 		if msg == endOfSendingMsg {
-			i++
+			if endOfSendCount++; endOfSendCount == maxConcurrency.Value() {
+				break
+			}
 		} else {
 			logMsg(msg)
 		}
+
+		//TODO: manage fatal error from senders. Stop reader and wait for results from other senders.
 	}
-
-	//TODO: sender fatal error. Stop reader and wait for results from other senders.
-
-	close(chControl)
 
 	fmt.Fprintf(os.Stderr, "\nFinished processing %v lines.\n", totalLines)
 }
 
-func read() {
+func read(chData chan<- dataMsg, chControl chan<- controlMsg, totalLines *uint) {
 	i := uint(0)
 	for i = 0; rowsToRead < 0 || i < uint(rowsToRead); i++ { // Cast only if >= 0.
 		jsonBytes, err := jsonRdr.Read()
@@ -150,10 +139,11 @@ func read() {
 		chControl <- controlMsg{err: err, origin: readerTask, line: i}
 	}
 
-	chControl <- controlMsg{err: io.EOF, origin: readerTask, line: i}
+	close(chData)
+	*totalLines = i
 }
 
-func send() {
+func send(chData <-chan dataMsg, chControl chan<- controlMsg) {
 	for {
 		msg, more := <-chData
 		if !more {
