@@ -27,9 +27,9 @@ func (ts *TimeSeries) Add(v interface{}) {
 // Values returns the raw values of the series.
 // TODO: temporary implementation.
 func (ts *TimeSeries) Values() []interface{} {
-	res := make([]interface{}, 0)
-	for _, v := range *ts {
-		res = append(res, v.Value)
+	res := make([]interface{}, len([]TimeValue(*ts)))
+	for i, v := range *ts {
+		res[i] = v.Value
 	}
 	return res
 }
@@ -37,9 +37,9 @@ func (ts *TimeSeries) Values() []interface{} {
 // FloatValues returns the float64 values of the series.
 // TODO: temporary implementation.
 func (ts *TimeSeries) FloatValues() []float64 {
-	res := make([]float64, 0)
-	for _, v := range *ts {
-		res = append(res, v.Value.(float64))
+	res := make([]float64, len([]TimeValue(*ts)))
+	for i, v := range *ts {
+		res[i] = v.Value.(float64)
 	}
 	return res
 }
