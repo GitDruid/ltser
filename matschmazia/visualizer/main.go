@@ -25,7 +25,7 @@ var (
 	station string
 )
 
-var dataStore db.Reader
+var dataStore db.ReadWriter
 
 func init() {
 	flag.StringVar(&url, "u", "", "Target url of InfluxDB instance.")
@@ -57,9 +57,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(1)
 	}
-	seriesValues := res.Measures.FloatValues()
 
-	test, err := adf.New(seriesValues, 0, -1)
+	// ADF TESTING ORIGINAL VALUES.
+	test, err := adf.New(res.Measures.Values, 0, -1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
 		os.Exit(2)
@@ -67,17 +67,18 @@ func main() {
 
 	test.Run()
 
-	fmt.Printf("Values in the series: %v\n", len(seriesValues))
+	fmt.Printf("Values in the series: %v\n", len(res.Measures.Values))
 	fmt.Printf("Is stationary: %v\n", test.IsStationary())
 
-	fixed, idx, err := stats.Hampel(seriesValues, 10, 5)
+	// FIXING OUTLIER VALUES WITH HAMPEL FILTER.
+	fixed, idx, err := stats.Hampel(res.Measures.Values, 10, 5)
 
 	for _, i := range idx {
-		fmt.Printf("Value #%v (originally %g) was replaced by %g.\n", i, seriesValues[i], fixed[i])
+		fmt.Printf("Value #%v (originally %g) was replaced by %g.\n", i, res.Measures.Values[i], fixed[i])
 	}
 	fmt.Printf("Total fixed: %v\n", len(idx))
 
-	// TEST DEI CAMPIONI FIXATI
+	// ADF TESTING FIXED VALUES.
 	test, err = adf.New(fixed, 0, -1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred: %q.\n", err)
@@ -87,4 +88,11 @@ func main() {
 	test.Run()
 	fmt.Printf("Values in the series: %v\n", len(fixed))
 	fmt.Printf("Is stationary: %v\n", test.IsStationary())
+
+	// SAVING FIXED VALUES.
+	res.Measures.Values = fixed
+	err = dataStore.WriteObservations(res, "_fixed")
+	if err != nil {
+		fmt.Printf("An error occurred: %q", err)
+	}
 }

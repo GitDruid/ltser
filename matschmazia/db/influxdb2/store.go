@@ -147,9 +147,9 @@ func (s *Store) Write(sd models.RawData) error {
 }
 
 // WriteObservations save a series of temporal values measurements.
-func (s *Store) WriteObservations(o models.Observations) error {
+func (s *Store) WriteObservations(o *models.Observations, suffix string) error {
 
-	var points = make([]*influxdb2.Point, len(o.Measures))
+	var points = make([]*influxdb2.Point, o.Measures.Lenght())
 	var measure = o.Measurement.Name()
 	var fieldName string
 
@@ -168,16 +168,18 @@ func (s *Store) WriteObservations(o models.Observations) error {
 		fieldName = snowFieldName
 	}
 
-	for _, tv := range o.Measures {
-		p := influxdb2.NewPointWithMeasurement(measure).
+	fieldName = fieldName + suffix
+
+	//for _, tv := range o.Measures {
+	for i := 0; i < o.Measures.Lenght(); i++ {
+		points[i] = influxdb2.NewPointWithMeasurement(measure).
 			AddTag("station", o.Station.Name).
 			AddTag("altitude", strconv.Itoa(o.Station.Altitude)).
 			AddTag("latitude", ext.FormatFloat32(o.Station.Latitude)).
 			AddTag("longitude", ext.FormatFloat32(o.Station.Longitude)).
 			AddTag("unit", o.Measurement.Unit()).
-			AddField(fieldName, tv.Value).
-			SetTime(tv.Time)
-		points = append(points, p)
+			AddField(fieldName, o.Measures.Values[i]).
+			SetTime(o.Measures.Times[i])
 	}
 
 	client := influxdb2.NewClient(s.url, s.token)
@@ -214,7 +216,7 @@ func (s *Store) ReadAll(m models.Measurement, rStart, rStop time.Time, station s
 			break
 		}
 
-		o.Measures.AddWithTime(*val)
+		o.Measures.AddTimeValue(val)
 	}
 
 	return &o, err
