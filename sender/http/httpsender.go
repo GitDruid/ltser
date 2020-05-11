@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/avast/retry-go"
 )
 
 // A Sender send json objects to HTTP RESTFul API.
@@ -21,8 +23,8 @@ func NewSender(url string) *Sender {
 	return httpSender
 }
 
-// Send POST json objects to target url.
-func (s *Sender) Send(b []byte) error {
+// TrySend POST json objects to target url.
+func (s *Sender) TrySend(b []byte) error {
 	r, err := http.Post(s.targetURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
 		return err
@@ -40,4 +42,12 @@ func (s *Sender) Send(b []byte) error {
 	}
 
 	return nil
+}
+
+// Send POST json objects to target url. It retries POST in case of failure.
+func (s *Sender) Send(b []byte) error {
+	sendFunc := func() error {
+		return s.TrySend(b)
+	}
+	return retry.Do(sendFunc)
 }
