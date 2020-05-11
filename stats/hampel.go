@@ -38,6 +38,41 @@ func Hampel(series []float64, wSize, nSigmas int) (newSeries []float64, indexes 
 	return newSeries, indexes, err
 }
 
+//HampelPar TODO: implement parallel version and compare performances.
+func HampelPar(series []float64, wSize, nSigmas int) (newSeries []float64, indexes []int, err error) {
+	// For the MAD to be a consistent estimator for the standard deviation,
+	// it must be multiplied by a constant scale factor k.
+	// The factor is dependent on the distribution, for Gaussian it is approximately 1.4826.
+	k := 1.4826
+	n := len(series)
+	newSeries = copySlice(series)
+	ch := make(chan struct{})
+
+	for i := wSize; i < n-wSize; i++ {
+		go func(i int) {
+			mad, median, _ := MMAD(series[(i - wSize):(i + wSize)]) // IGNORING ERROR.
+
+			S0 := k * mad
+
+			// If the considered observation differs from the window median by more than x
+			// standard deviations, it must be treaten as an outlier and replaced with the median.
+			if math.Abs(series[i]-median) > float64(nSigmas)*S0 {
+				newSeries[i] = median
+				indexes = append(indexes, i)
+			}
+
+			ch <- struct{}{}
+		}(i)
+	}
+
+	// Wait for goroutines to complete
+	for i := wSize; i < n-wSize; i++ {
+		<-ch
+	}
+
+	return newSeries, indexes, err
+}
+
 /*
 def hampel_filter_forloop(input_series, window_size, n_sigmas=3):
 
