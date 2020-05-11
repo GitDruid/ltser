@@ -71,7 +71,7 @@ func main() {
 	fmt.Printf("Is stationary: %v\n", test.IsStationary())
 
 	// FIXING OUTLIER VALUES WITH HAMPEL FILTER.
-	fixed, idx, err := stats.Hampel(res.Measures.Values, 10, 5)
+	fixed, idx, err := stats.HampelPar(res.Measures.Values, 15, 5)
 
 	for _, i := range idx {
 		fmt.Printf("Value #%v (originally %g) was replaced by %g.\n", i, res.Measures.Values[i], fixed[i])
