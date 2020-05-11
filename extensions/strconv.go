@@ -6,7 +6,12 @@ import (
 )
 
 // TryParseInt attempts a conversion ignoring any error.
+// TODO: to be removed/rewritten!
 func TryParseInt(val interface{}) int {
+	val, ok := val.(string)
+	if !ok {
+		return 0
+	}
 	i, _ := strconv.Atoi(val.(string))
 	return i
 }
@@ -21,7 +26,12 @@ func MustParseInt(val interface{}) int {
 }
 
 // TryParseFloat32 attempts a conversion ignoring any error.
+// TODO: to be removed/rewritten!
 func TryParseFloat32(val interface{}) float32 {
+	val, ok := val.(string)
+	if !ok {
+		return 0
+	}
 	f, _ := strconv.ParseFloat(val.(string), 32)
 	return float32(f)
 }
@@ -36,7 +46,12 @@ func MustParseFloat32(val interface{}) float32 {
 }
 
 // TryParseFloat64 attempts a conversion ignoring any error.
+// TODO: to be removed/rewritten!
 func TryParseFloat64(val interface{}) float64 {
+	val, ok := val.(string)
+	if !ok {
+		return 0
+	}
 	f, _ := strconv.ParseFloat(val.(string), 64)
 	return f
 }
