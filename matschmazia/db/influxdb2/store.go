@@ -52,9 +52,16 @@ func (s *Store) Write(sd models.RawData) error {
 
 	writeAPI := client.WriteApiBlocking(s.org, s.bucket)
 
+	// Obtaining Time.
 	t, err := time.Parse("2006-01-02 15:04:05 -0700", sd.Time+" +0100") // Measurement time is (UTC +1).
 	if err != nil {
 		return err
+	}
+
+	// Obtaining Altitude from Altitude/Elevation.
+	altitude := sd.Altitude
+	if altitude == "" {
+		altitude = sd.Elevation
 	}
 
 	var points = make([]*influxdb2.Point, 0, 5)
@@ -63,7 +70,7 @@ func (s *Store) Write(sd models.RawData) error {
 	if temp, err := strconv.ParseFloat(sd.AirTempAvg, 64); err == nil && !math.IsNaN(temp) {
 		p := influxdb2.NewPointWithMeasurement(models.Temperature.Name()).
 			AddTag("station", sd.Station).
-			AddTag("altitude", sd.Altitude).
+			AddTag("altitude", altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "celsius").
@@ -80,7 +87,7 @@ func (s *Store) Write(sd models.RawData) error {
 	if err == nil && !math.IsNaN(wsa) {
 		p := influxdb2.NewPointWithMeasurement(models.WindSpeed.Name()).
 			AddTag("station", sd.Station).
-			AddTag("altitude", sd.Altitude).
+			AddTag("altitude", altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "m/s").
@@ -93,7 +100,7 @@ func (s *Store) Write(sd models.RawData) error {
 	if wsm, err := strconv.ParseFloat(sd.WindSpeedMax, 64); err == nil && !math.IsNaN(wsm) {
 		p := influxdb2.NewPointWithMeasurement(models.WindGust.Name()).
 			AddTag("station", sd.Station).
-			AddTag("altitude", sd.Altitude).
+			AddTag("altitude", altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "m/s").
@@ -106,7 +113,7 @@ func (s *Store) Write(sd models.RawData) error {
 	if h, err := strconv.ParseFloat(sd.AirRelHumidityAvg, 64); err == nil && !math.IsNaN(h) {
 		p := influxdb2.NewPointWithMeasurement(models.Humidity.Name()).
 			AddTag("station", sd.Station).
-			AddTag("altitude", sd.Altitude).
+			AddTag("altitude", altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "percent").
@@ -119,7 +126,7 @@ func (s *Store) Write(sd models.RawData) error {
 	if pa, err := strconv.ParseFloat(sd.PrecipRtNrtTot, 64); err == nil && !math.IsNaN(pa) {
 		p := influxdb2.NewPointWithMeasurement(models.Precipitations.Name()).
 			AddTag("station", sd.Station).
-			AddTag("altitude", sd.Altitude).
+			AddTag("altitude", altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "mm").
@@ -132,7 +139,7 @@ func (s *Store) Write(sd models.RawData) error {
 	if sh, err := strconv.ParseFloat(sd.SnowHeight, 64); err == nil && !math.IsNaN(sh) {
 		p := influxdb2.NewPointWithMeasurement(models.Snow.Name()).
 			AddTag("station", sd.Station).
-			AddTag("altitude", sd.Altitude).
+			AddTag("altitude", altitude).
 			AddTag("latitude", sd.Latitude).
 			AddTag("longitude", sd.Longitude).
 			AddTag("unit", "m").
@@ -245,11 +252,13 @@ func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station stri
 
 	var r = Result{queryResult: qr}
 
+	r.queryResult.Next()
+
 	// First record is read here. The others are read in the Iterator.
 	if r.queryResult.Next() {
-		r.station.Altitude = ext.TryParseInt(r.queryResult.Record().ValueByKey("altitude"))
-		r.station.Latitude = ext.TryParseFloat64(r.queryResult.Record().ValueByKey("latitude"))
-		r.station.Longitude = ext.TryParseFloat64(r.queryResult.Record().ValueByKey("longitude"))
+		r.station.Altitude = ext.MustParseInt(r.queryResult.Record().ValueByKey("altitude"))
+		r.station.Latitude = ext.MustParseFloat64(r.queryResult.Record().ValueByKey("latitude"))
+		r.station.Longitude = ext.MustParseFloat64(r.queryResult.Record().ValueByKey("longitude"))
 		r.station.Name = r.queryResult.Record().ValueByKey("station").(string)
 		r.measurement = m
 		r.currentError = r.queryResult.Err()

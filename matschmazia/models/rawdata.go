@@ -7,7 +7,8 @@ type RawData struct {
 	Time              string `json:"time"`              // Date/time of measurement (UTC +1).
 	Station           string `json:"station"`           // Station code.
 	Landuse           string `json:"landuse"`           // me = meadows, pa = pasture, bs = bare soil, fo = forest
-	Altitude          string `json:"altitude"`          // Altitude of the station in meters.
+	Altitude          string `json:"altitude"`          // Altitude of the station in meters. [Field present until April 2020]
+	Elevation         string `json:"elevation"`         // Elevation of the station in meters. [Field present from May 2020]
 	Latitude          string `json:"latitude"`          // Latitude, coordinates in decimal degrees.
 	Longitude         string `json:"longitude"`         // Longitude, coordinates in decimal degrees.
 	AirRelHumidityAvg string `json:"air_rh_avg"`        // Relative humidity in percent (15 min average).
