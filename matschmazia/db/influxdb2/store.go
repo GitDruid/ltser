@@ -60,7 +60,7 @@ func (s *Store) Write(sd models.RawData) error {
 	var points = make([]*influxdb2.Point, 0, 5)
 
 	// Temperature.
-	if temp, err := strconv.ParseFloat(sd.AirTempAvg, 32); err == nil && !math.IsNaN(temp) {
+	if temp, err := strconv.ParseFloat(sd.AirTempAvg, 64); err == nil && !math.IsNaN(temp) {
 		p := influxdb2.NewPointWithMeasurement(models.Temperature.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
@@ -73,9 +73,9 @@ func (s *Store) Write(sd models.RawData) error {
 	}
 
 	// Wind Speed.
-	wsa, err := strconv.ParseFloat(sd.WindSpeedAvg, 32)
+	wsa, err := strconv.ParseFloat(sd.WindSpeedAvg, 64)
 	if err != nil || math.IsNaN(wsa) {
-		wsa, err = strconv.ParseFloat(sd.WindSpeed, 32) // In same cases values are in sd.WindSpeed, in others in sd.WindSpeedAvg.
+		wsa, err = strconv.ParseFloat(sd.WindSpeed, 64) // In same cases values are in sd.WindSpeed, in others in sd.WindSpeedAvg.
 	}
 	if err == nil && !math.IsNaN(wsa) {
 		p := influxdb2.NewPointWithMeasurement(models.WindSpeed.Name()).
@@ -90,7 +90,7 @@ func (s *Store) Write(sd models.RawData) error {
 	}
 
 	// Wind Gust.
-	if wsm, err := strconv.ParseFloat(sd.WindSpeedMax, 32); err == nil && !math.IsNaN(wsm) {
+	if wsm, err := strconv.ParseFloat(sd.WindSpeedMax, 64); err == nil && !math.IsNaN(wsm) {
 		p := influxdb2.NewPointWithMeasurement(models.WindGust.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
@@ -103,7 +103,7 @@ func (s *Store) Write(sd models.RawData) error {
 	}
 
 	// Humidity
-	if h, err := strconv.ParseFloat(sd.AirRelHumidityAvg, 32); err == nil && !math.IsNaN(h) {
+	if h, err := strconv.ParseFloat(sd.AirRelHumidityAvg, 64); err == nil && !math.IsNaN(h) {
 		p := influxdb2.NewPointWithMeasurement(models.Humidity.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
@@ -116,7 +116,7 @@ func (s *Store) Write(sd models.RawData) error {
 	}
 
 	// Precipitations.
-	if pa, err := strconv.ParseFloat(sd.PrecipRtNrtTot, 32); err == nil && !math.IsNaN(pa) {
+	if pa, err := strconv.ParseFloat(sd.PrecipRtNrtTot, 64); err == nil && !math.IsNaN(pa) {
 		p := influxdb2.NewPointWithMeasurement(models.Precipitations.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
@@ -129,7 +129,7 @@ func (s *Store) Write(sd models.RawData) error {
 	}
 
 	// Snow.
-	if sh, err := strconv.ParseFloat(sd.SnowHeight, 32); err == nil && !math.IsNaN(sh) {
+	if sh, err := strconv.ParseFloat(sd.SnowHeight, 64); err == nil && !math.IsNaN(sh) {
 		p := influxdb2.NewPointWithMeasurement(models.Snow.Name()).
 			AddTag("station", sd.Station).
 			AddTag("altitude", sd.Altitude).
@@ -141,9 +141,11 @@ func (s *Store) Write(sd models.RawData) error {
 		points = append(points, p)
 	}
 
-	err = writeAPI.WritePoint(context.Background(), points...)
+	if len(points) > 0 {
+		return writeAPI.WritePoint(context.Background(), points...)
+	}
 
-	return err
+	return nil // No data written.
 }
 
 // WriteObservations save a series of temporal values measurements.
@@ -175,8 +177,8 @@ func (s *Store) WriteObservations(o *models.Observations, suffix string) error {
 		points[i] = influxdb2.NewPointWithMeasurement(measure).
 			AddTag("station", o.Station.Name).
 			AddTag("altitude", strconv.Itoa(o.Station.Altitude)).
-			AddTag("latitude", ext.FormatFloat32(o.Station.Latitude)).
-			AddTag("longitude", ext.FormatFloat32(o.Station.Longitude)).
+			AddTag("latitude", ext.FormatFloat64(o.Station.Latitude)).
+			AddTag("longitude", ext.FormatFloat64(o.Station.Longitude)).
 			AddTag("unit", o.Measurement.Unit()).
 			AddField(fieldName, o.Measures.Values[i]).
 			SetTime(o.Measures.Times[i])
@@ -246,8 +248,8 @@ func (s *Store) Read(m models.Measurement, rStart, rStop time.Time, station stri
 	// First record is read here. The others are read in the Iterator.
 	if r.queryResult.Next() {
 		r.station.Altitude = ext.TryParseInt(r.queryResult.Record().ValueByKey("altitude"))
-		r.station.Latitude = ext.TryParseFloat32(r.queryResult.Record().ValueByKey("latitude"))
-		r.station.Longitude = ext.TryParseFloat32(r.queryResult.Record().ValueByKey("longitude"))
+		r.station.Latitude = ext.TryParseFloat64(r.queryResult.Record().ValueByKey("latitude"))
+		r.station.Longitude = ext.TryParseFloat64(r.queryResult.Record().ValueByKey("longitude"))
 		r.station.Name = r.queryResult.Record().ValueByKey("station").(string)
 		r.measurement = m
 		r.currentError = r.queryResult.Err()
